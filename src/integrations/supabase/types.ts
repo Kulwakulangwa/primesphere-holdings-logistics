@@ -14,7 +14,205 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      drivers: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          license_number: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          license_number?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          license_number?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      trip_expenses: {
+        Row: {
+          amount_tzs: number
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          receipt_url: string | null
+          status: string
+          trip_id: string
+          volume_liters: number | null
+        }
+        Insert: {
+          amount_tzs?: number
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          receipt_url?: string | null
+          status?: string
+          trip_id: string
+          volume_liters?: number | null
+        }
+        Update: {
+          amount_tzs?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          receipt_url?: string | null
+          status?: string
+          trip_id?: string
+          volume_liters?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_expenses_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_financials: {
+        Row: {
+          advance_input_type: string
+          advance_paid_tzs: number
+          advance_paid_usd: number
+          advance_value: number
+          contract_amount: number
+          contract_currency: string
+          created_at: string
+          fx_exchange_rate: number
+          id: string
+          total_contract_tzs: number | null
+          trip_id: string
+        }
+        Insert: {
+          advance_input_type?: string
+          advance_paid_tzs?: number
+          advance_paid_usd?: number
+          advance_value?: number
+          contract_amount?: number
+          contract_currency?: string
+          created_at?: string
+          fx_exchange_rate?: number
+          id?: string
+          total_contract_tzs?: number | null
+          trip_id: string
+        }
+        Update: {
+          advance_input_type?: string
+          advance_paid_tzs?: number
+          advance_paid_usd?: number
+          advance_value?: number
+          contract_amount?: number
+          contract_currency?: string
+          created_at?: string
+          fx_exchange_rate?: number
+          id?: string
+          total_contract_tzs?: number | null
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_financials_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          created_at: string
+          dispatch_date: string | null
+          driver_id: string | null
+          id: string
+          origin_destination: string
+          planned_km: number
+          return_date: string | null
+          status: string
+          trip_code: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          dispatch_date?: string | null
+          driver_id?: string | null
+          id?: string
+          origin_destination: string
+          planned_km?: number
+          return_date?: string | null
+          status?: string
+          trip_code: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          dispatch_date?: string | null
+          driver_id?: string | null
+          id?: string
+          origin_destination?: string
+          planned_km?: number
+          return_date?: string | null
+          status?: string
+          trip_code?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trips_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          capacity_tons: number
+          created_at: string
+          id: string
+          model: string
+          reg_number: string
+          status: string
+        }
+        Insert: {
+          capacity_tons?: number
+          created_at?: string
+          id?: string
+          model: string
+          reg_number: string
+          status?: string
+        }
+        Update: {
+          capacity_tons?: number
+          created_at?: string
+          id?: string
+          model?: string
+          reg_number?: string
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
