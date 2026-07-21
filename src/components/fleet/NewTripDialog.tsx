@@ -19,12 +19,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { driversQuery, vehiclesQuery } from "@/lib/queries";
 import { fmtTZS, fmtUSD } from "@/lib/format";
+import { NewDriverDialog } from "./NewDriverDialog";
 
 export function NewTripDialog() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const { data: vehicles } = useQuery(vehiclesQuery);
-  const { data: drivers } = useQuery(driversQuery);
+  const { data: vehicles } = useQuery({ ...vehiclesQuery, refetchOnMount: "always" });
+  const { data: drivers } = useQuery({ ...driversQuery, refetchOnMount: "always" });
+
 
   const [vehicleId, setVehicleId] = useState<string>("");
   const [driverId, setDriverId] = useState<string>("");
