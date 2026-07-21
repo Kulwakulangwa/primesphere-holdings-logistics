@@ -26,8 +26,10 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
     { to: "/vehicles", label: "Vehicles", icon: Truck },
     { to: "/drivers", label: "Drivers", icon: Users },
+    { to: "/expenses", label: "Expenses", icon: Receipt },
     { to: "/voucher", label: "Driver Voucher", icon: Smartphone },
   ];
+
 
 
   return (
