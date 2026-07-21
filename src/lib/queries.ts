@@ -152,3 +152,81 @@ export const tripDetailQuery = (tripId: string) =>
       };
     },
   });
+
+export type DriverRow = Driver & {
+  active_trips: number;
+  total_trips: number;
+  trip_advance_tzs: number;
+  salary_paid_tzs: number;
+  extra_advance_tzs: number;
+};
+
+export const driversOverviewQuery = queryOptions({
+  queryKey: ["drivers", "overview"],
+  queryFn: async (): Promise<DriverRow[]> => {
+    const [{ data: drivers, error }, { data: trips }, { data: fins }, { data: pays }] =
+      await Promise.all([
+        supabase.from("drivers").select("*").order("full_name"),
+        supabase.from("trips").select("id, driver_id, status"),
+        supabase.from("trip_financials").select("trip_id, advance_paid_tzs"),
+        supabase.from("driver_payments").select("driver_id, payment_type, amount_tzs"),
+      ]);
+    if (error) throw error;
+    const finMap = new Map((fins ?? []).map((f) => [f.trip_id, Number(f.advance_paid_tzs)]));
+    return (drivers ?? []).map((d) => {
+      const dtrips = (trips ?? []).filter((t) => t.driver_id === d.id);
+      const active = dtrips.filter((t) => t.status === "In-Transit" || t.status === "Dispatched").length;
+      const tripAdvance = dtrips.reduce((s, t) => s + (finMap.get(t.id) ?? 0), 0);
+      const dpays = (pays ?? []).filter((p) => p.driver_id === d.id);
+      const salary = dpays.filter((p) => p.payment_type === "Salary").reduce((s, p) => s + Number(p.amount_tzs), 0);
+      const extra = dpays.filter((p) => p.payment_type === "Advance").reduce((s, p) => s + Number(p.amount_tzs), 0);
+      return {
+        ...(d as Driver),
+        active_trips: active,
+        total_trips: dtrips.length,
+        trip_advance_tzs: tripAdvance,
+        salary_paid_tzs: salary,
+        extra_advance_tzs: extra,
+      };
+    });
+  },
+});
+
+export const driverDetailQuery = (driverId: string) =>
+  queryOptions({
+    queryKey: ["driver", driverId],
+    queryFn: async () => {
+      const [{ data: driver }, { data: trips }, { data: payments }] = await Promise.all([
+        supabase.from("drivers").select("*").eq("id", driverId).maybeSingle(),
+        supabase
+          .from("trips")
+          .select("*")
+          .eq("driver_id", driverId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("driver_payments")
+          .select("*")
+          .eq("driver_id", driverId)
+          .order("payment_date", { ascending: false }),
+      ]);
+      if (!driver) return null;
+      const tripIds = (trips ?? []).map((t) => t.id);
+      const [{ data: fins }, { data: vehicles }] = await Promise.all([
+        tripIds.length
+          ? supabase.from("trip_financials").select("*").in("trip_id", tripIds)
+          : Promise.resolve({ data: [] as TripFinancial[] }),
+        supabase.from("vehicles").select("*"),
+      ]);
+      const fMap = new Map((fins ?? []).map((f) => [f.trip_id, f as TripFinancial]));
+      const vMap = new Map((vehicles ?? []).map((v) => [v.id, v as Vehicle]));
+      return {
+        driver: driver as Driver,
+        trips: (trips as Trip[]).map((t) => ({
+          ...t,
+          financial: fMap.get(t.id) ?? null,
+          vehicle: (vMap.get(t.vehicle_id ?? "") as Vehicle) ?? null,
+        })),
+        payments: (payments ?? []) as DriverPayment[],
+      };
+    },
+  });
