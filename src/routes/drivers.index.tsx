@@ -8,7 +8,7 @@ import { driversOverviewQuery } from "@/lib/queries";
 import { fmtTZS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/drivers")({
+export const Route = createFileRoute("/drivers/")({
   head: () => ({
     meta: [
       { title: "Drivers — FleetPulse" },
