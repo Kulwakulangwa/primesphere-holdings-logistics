@@ -116,9 +116,12 @@ export function NewTripDialog() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" /> Driver
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" /> Driver
+                </Label>
+                <NewDriverDialog />
+              </div>
               <Select value={driverId} onValueChange={setDriverId}>
                 <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
                 <SelectContent>
@@ -128,6 +131,7 @@ export function NewTripDialog() {
                 </SelectContent>
               </Select>
             </div>
+
           </div>
 
           <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
