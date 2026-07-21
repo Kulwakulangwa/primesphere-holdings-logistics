@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Truck, LayoutDashboard, Smartphone, Moon, Sun } from "lucide-react";
+import { Truck, LayoutDashboard, Smartphone, Moon, Sun, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
 
   const nav = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/drivers", label: "Drivers", icon: Users },
     { to: "/voucher", label: "Driver Voucher", icon: Smartphone },
   ];
 
