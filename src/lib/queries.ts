@@ -8,7 +8,26 @@ export type Vehicle = {
   capacity_tons: number;
   status: string;
 };
-export type Driver = { id: string; full_name: string; phone: string | null; license_number: string | null };
+export type Driver = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  license_number: string | null;
+  monthly_salary_tzs: number;
+  base_location: string | null;
+  created_at?: string;
+};
+export type DriverPayment = {
+  id: string;
+  driver_id: string;
+  payment_type: string;
+  amount_tzs: number;
+  payment_date: string;
+  period_label: string | null;
+  reference_trip: string | null;
+  notes: string | null;
+  created_at: string;
+};
 export type Trip = {
   id: string;
   trip_code: string;
