@@ -24,6 +24,7 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
 
   const nav = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/drivers", label: "Drivers", icon: Users },
     { to: "/voucher", label: "Driver Voucher", icon: Smartphone },
   ];
 
