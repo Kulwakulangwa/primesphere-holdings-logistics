@@ -156,6 +156,45 @@ export function NewTripDialog() {
 
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" /> Customer
+              </Label>
+              <Select
+                value={customerId}
+                onValueChange={(v) => {
+                  setCustomerId(v);
+                  setContractId("");
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
+                <SelectContent>
+                  {customers?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5" /> Contract
+              </Label>
+              <Select value={contractId} onValueChange={setContractId} disabled={!availableContracts.length}>
+                <SelectTrigger>
+                  <SelectValue placeholder={availableContracts.length ? "Link a contract" : "No contracts available"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableContracts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.route} · {c.contract_currency} {Number(c.contract_amount).toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
             <div className="grid gap-1.5">
               <Label>Route / Origin → Destination</Label>
