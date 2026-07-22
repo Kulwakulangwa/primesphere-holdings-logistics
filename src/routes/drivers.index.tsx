@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Users, Wallet, Banknote, Activity } from "lucide-react";
 
-import { AppHeader } from "@/components/fleet/AppHeader";
 import { NewDriverDialog } from "@/components/fleet/NewDriverDialog";
 import { driversOverviewQuery } from "@/lib/queries";
 import { fmtTZS } from "@/lib/format";
@@ -11,9 +10,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/drivers/")({
   head: () => ({
     meta: [
-      { title: "Drivers — FleetPulse" },
+      { title: "Drivers — Primesphere Holdings Logistics" },
       { name: "description", content: "Manage drivers, salaries and cash advances across the fleet." },
-      { property: "og:title", content: "Drivers — FleetPulse" },
+      { property: "og:title", content: "Drivers — Primesphere Holdings Logistics" },
       { property: "og:description", content: "Payroll and advance ledger for every driver in the fleet." },
     ],
   }),
@@ -34,27 +33,42 @@ function DriversPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader right={<NewDriverDialog />} />
+      {/* Page header */}
+      <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Drivers</h1>
+          <p className="text-xs text-muted-foreground">Manage drivers, salaries and cash advances across the fleet.</p>
+        </div>
+        <NewDriverDialog />
+      </div>
 
+      {/* Stat cards */}
       <div className="border-b bg-gradient-to-br from-primary/8 via-background to-accent/20">
-        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-background/60 px-2.5 py-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-            <Users className="h-3 w-3 text-primary" /> Payroll & advances
-          </div>
-          <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">Drivers</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-            Every driver you dispatch appears here — track trips, salary payouts and cash advances in one ledger.
-          </p>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <StatCard icon={<Users className="h-5 w-5" />} tone="primary" label="Drivers on payroll" value={String(drivers.length)} />
-            <StatCard icon={<Wallet className="h-5 w-5" />} tone="warning" label="Total advances (all-time)" value={fmtTZS(totals.advance)} />
-            <StatCard icon={<Banknote className="h-5 w-5" />} tone="success" label="Salaries paid" value={fmtTZS(totals.salary)} />
+        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatCard
+              icon={<Users className="h-5 w-5" />}
+              tone="primary"
+              label="Drivers on payroll"
+              value={String(drivers.length)}
+            />
+            <StatCard
+              icon={<Wallet className="h-5 w-5" />}
+              tone="warning"
+              label="Total advances (all-time)"
+              value={fmtTZS(totals.advance)}
+            />
+            <StatCard
+              icon={<Banknote className="h-5 w-5" />}
+              tone="success"
+              label="Salaries paid"
+              value={fmtTZS(totals.salary)}
+            />
           </div>
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
+      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
