@@ -34,8 +34,6 @@ function TripsPage() {
   const { data: trips = [] } = useQuery(tripsQuery);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
-
-  // State for editing trip
   const [editingTrip, setEditingTrip] = useState<TripRow | null>(null);
 
   const advance = useMutation({
@@ -156,7 +154,7 @@ function TripsPage() {
                             <DropdownMenuItem onClick={() => nav({ to: "/trips/$tripId/audit", params: { tripId: t.id } })}>
                               <FileCheck className="h-4 w-4 mr-2" />Open audit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setEditingTrip(t)}> {/* EDIT: open dialog */}
+                            <DropdownMenuItem onClick={() => setEditingTrip(t)}>
                               <Pencil className="h-4 w-4 mr-2" />Edit trip
                             </DropdownMenuItem>
                             {next && (
