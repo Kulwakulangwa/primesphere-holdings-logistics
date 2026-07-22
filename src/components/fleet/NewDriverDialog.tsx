@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Loader2, UserPlus } from "lucide-react";
+import { Plus, Loader2, User, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,85 +15,141 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { Driver } from "@/lib/queries";
 
-export function NewDriverDialog() {
+type NewDriverDialogProps = {
+  initialData?: Driver | null;
+  trigger?: React.ReactNode;
+  onSuccess?: () => void;
+};
+
+export function NewDriverDialog({ initialData, trigger, onSuccess }: NewDriverDialogProps) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [license, setLicense] = useState("");
-  const [salary, setSalary] = useState("450000");
-  const [base, setBase] = useState("Dar es Salaam");
+  const [monthlySalary, setMonthlySalary] = useState("");
+  const [baseLocation, setBaseLocation] = useState("");
 
-  const create = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("drivers").insert({
-        full_name: fullName,
-        phone: phone || null,
-        license_number: license || null,
-        monthly_salary_tzs: Number(salary || 0),
-        base_location: base || null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["drivers"] });
-      toast.success("Driver added");
-      setOpen(false);
+  useEffect(() => {
+    if (initialData) {
+      setFullName(initialData.full_name);
+      setPhone(initialData.phone ?? "");
+      setLicense(initialData.license_number ?? "");
+      setMonthlySalary(String(initialData.monthly_salary_tzs || 0));
+      setBaseLocation(initialData.base_location ?? "");
+    }
+  }, [initialData]);
+
+  const resetForm = () => {
+    if (!initialData) {
       setFullName("");
       setPhone("");
       setLicense("");
+      setMonthlySalary("0");
+      setBaseLocation("");
+    }
+  };
+
+  const createOrUpdate = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        full_name: fullName.trim(),
+        phone: phone.trim() || null,
+        license_number: license.trim() || null,
+        monthly_salary_tzs: Number(monthlySalary || 0),
+        base_location: baseLocation.trim() || null,
+      };
+      if (initialData?.id) {
+        const { error } = await supabase
+          .from("drivers")
+          .update(payload)
+          .eq("id", initialData.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("drivers")
+          .insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["drivers"] });
+      qc.invalidateQueries({ queryKey: ["drivers", "overview"] });
+      if (initialData?.id) {
+        qc.invalidateQueries({ queryKey: ["driver", initialData.id] });
+      }
+      toast.success(initialData ? "Driver updated" : "Driver added");
+      setOpen(false);
+      if (onSuccess) onSuccess();
+      if (!initialData) resetForm();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const handleOpenChange = (open: boolean) => {
+    setOpen(open);
+    if (!open && !initialData) resetForm();
+  };
+
+  const defaultTrigger = initialData ? (
+    <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit driver">
+      <Pencil className="h-4 w-4" />
+    </Button>
+  ) : (
+    <Button className="gap-2">
+      <User className="h-4 w-4" /> Add driver
+    </Button>
+  );
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
-          <UserPlus className="h-4 w-4" /> Add driver
-        </Button>
+        {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add a new driver</DialogTitle>
-          <DialogDescription>Register a driver with payroll details.</DialogDescription>
+          <DialogTitle>{initialData ? "Edit driver" : "Add a new driver"}</DialogTitle>
+          <DialogDescription>
+            {initialData ? "Update driver details." : "Register a new driver to the fleet."}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-1.5">
             <Label>Full name</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Mwangi" />
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="John Doe" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label>Phone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+255 ..." />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+255 700 000 000" />
             </div>
             <div className="grid gap-1.5">
-              <Label>License #</Label>
-              <Input value={license} onChange={(e) => setLicense(e.target.value)} />
+              <Label>License number</Label>
+              <Input value={license} onChange={(e) => setLicense(e.target.value)} placeholder="TZ-DL-12345" />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label>Monthly salary (TZS)</Label>
-              <Input inputMode="decimal" value={salary} onChange={(e) => setSalary(e.target.value)} />
+              <Input inputMode="decimal" value={monthlySalary} onChange={(e) => setMonthlySalary(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
               <Label>Base location</Label>
-              <Input value={base} onChange={(e) => setBase(e.target.value)} />
+              <Input value={baseLocation} onChange={(e) => setBaseLocation(e.target.value)} placeholder="Dar es Salaam" />
             </div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
           <Button
-            onClick={() => create.mutate()}
-            disabled={!fullName || create.isPending}
+            onClick={() => createOrUpdate.mutate()}
+            disabled={!fullName || createOrUpdate.isPending}
             className="gap-2"
           >
-            {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Save driver
+            {createOrUpdate.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (initialData ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />)}
+            {initialData ? "Update driver" : "Save driver"}
           </Button>
         </DialogFooter>
       </DialogContent>
