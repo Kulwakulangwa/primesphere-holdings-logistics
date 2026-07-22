@@ -43,12 +43,12 @@ function AuditPage() {
 
   const settle = useMutation({
     mutationFn: async (next: "Completed" | "Audited") => {
-      const patch: Record<string, unknown> = { status: next };
+      const patch: { status: string; settled_at?: string; audited_at?: string } = { status: next };
       if (next === "Completed") patch.settled_at = new Date().toISOString();
       if (next === "Audited") patch.audited_at = new Date().toISOString();
       const { error } = await supabase.from("trips").update(patch).eq("id", tripId);
       if (error) throw error;
-      await supabase.from("audit_logs").insert({ action: `trip.${next.toLowerCase()}`, entity: "trip", entity_id: tripId, payload: patch });
+      await supabase.from("audit_logs").insert({ action: `trip.${next.toLowerCase()}`, entity: "trip", entity_id: tripId, payload: { status: next } });
     },
     onSuccess: (_d, next) => {
       qc.invalidateQueries({ queryKey: ["trip", tripId] });
