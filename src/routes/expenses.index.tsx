@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AppHeader } from "@/components/fleet/AppHeader";
 import { ReceiptViewer } from "@/components/fleet/ReceiptViewer";
 import { StatusBadge } from "@/components/fleet/StatusBadge";
 import { Input } from "@/components/ui/input";
@@ -20,9 +19,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/expenses/")({
   head: () => ({
     meta: [
-      { title: "Expenses — FleetPulse" },
+      { title: "Expenses — Primesphere Holdings Logistics" },
       { name: "description", content: "Ledger of every trip expense — fuel, tolls, parking and more." },
-      { property: "og:title", content: "Expenses — FleetPulse" },
+      { property: "og:title", content: "Expenses — Primesphere Holdings Logistics" },
       { property: "og:description", content: "Verify, filter and audit fleet expenses across every trip." },
     ],
   }),
@@ -88,19 +87,19 @@ function ExpensesPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader />
+      {/* Page header */}
+      <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Expenses</h1>
+          <p className="text-xs text-muted-foreground">Ledger of every trip expense — fuel, tolls, parking and more.</p>
+        </div>
+        {/* No action button for this page, but we could add one if needed */}
+      </div>
 
+      {/* Stats */}
       <div className="border-b bg-gradient-to-br from-primary/8 via-background to-accent/20">
-        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full border bg-background/60 px-2.5 py-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-            <Receipt className="h-3 w-3 text-primary" /> Expense audit
-          </div>
-          <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">Expenses</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-            Every voucher and receipt from the field — filter, verify and audit fleet spend in one ledger.
-          </p>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
+          <div className="grid gap-4 sm:grid-cols-3">
             <StatCard icon={<Wallet className="h-5 w-5" />} tone="primary" label="Total logged" value={fmtTZS(totals.total)} />
             <StatCard icon={<CheckCircle2 className="h-5 w-5" />} tone="success" label="Verified" value={fmtTZS(totals.verified)} />
             <StatCard icon={<Clock className="h-5 w-5" />} tone="warning" label="Pending review" value={fmtTZS(totals.pending)} />
@@ -108,7 +107,7 @@ function ExpensesPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
+      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
