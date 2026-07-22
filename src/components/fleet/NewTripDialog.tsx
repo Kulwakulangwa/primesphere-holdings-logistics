@@ -40,6 +40,23 @@ export function NewTripDialog() {
   const [advanceType, setAdvanceType] = useState<"percentage" | "fixed">("percentage");
   const [advanceValue, setAdvanceValue] = useState("70");
 
+  const availableContracts = useMemo(
+    () => (contracts ?? []).filter((c) => !customerId || c.customer_id === customerId),
+    [contracts, customerId],
+  );
+  const selectedContract = useMemo(
+    () => (contracts ?? []).find((c) => c.id === contractId) ?? null,
+    [contracts, contractId],
+  );
+
+  // When a contract is picked, auto-fill the freight amount + route.
+  useEffect(() => {
+    if (!selectedContract) return;
+    setContractUsd(String(selectedContract.contract_amount));
+    if (selectedContract.route) setRoute(selectedContract.route);
+    if (selectedContract.customer_id) setCustomerId(selectedContract.customer_id);
+  }, [selectedContract]);
+
   const totalContractTzs = Number(contractUsd || 0) * Number(fxRate || 0);
   const advancePaidUsd = useMemo(() => {
     if (advanceType === "percentage") return (Number(contractUsd || 0) * Number(advanceValue || 0)) / 100;
