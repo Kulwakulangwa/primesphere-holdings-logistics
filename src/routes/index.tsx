@@ -71,9 +71,11 @@ function DashboardPage() {
                 <Activity className="h-3 w-3 text-primary" />
                 Live operations
               </div>
-              <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">Fleet control room</h1>
+              <h1 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">
+                Primesphere Logistics
+              </h1>
               <p className="mt-1.5 text-sm text-muted-foreground max-w-xl">
-                Track every long-haul convoy, driver advance and fuel voucher from dispatch to settlement — no more Excel sheets.
+                Comprehensive fleet transit and expense management for Primesphere Holdings Logistics.
               </p>
             </div>
           </div>
@@ -115,8 +117,10 @@ function DashboardPage() {
       <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Fleet trips</h2>
-            <p className="text-xs text-muted-foreground">Click any trip to open the cash audit deep-dive.</p>
+            <h2 className="text-lg font-semibold tracking-tight">Trips</h2>
+            <p className="text-xs text-muted-foreground">
+              Click any trip to view detailed cash audit.
+            </p>
           </div>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
             <TabsList>
