@@ -82,7 +82,7 @@ function DriversPage() {
                   <th className="px-4 py-3 font-medium text-right">Trip advances</th>
                   <th className="px-4 py-3 font-medium text-right">Extra advances</th>
                   <th className="px-4 py-3 font-medium text-right">Salary paid</th>
-                  <th className="w-8" />
+                  <th className="w-16" />
                 </tr>
               </thead>
               <tbody>
@@ -116,14 +116,17 @@ function DriversPage() {
                     <td className="px-4 py-3 text-right tabular">{fmtTZS(d.extra_advance_tzs)}</td>
                     <td className="px-4 py-3 text-right tabular">{fmtTZS(d.salary_paid_tzs)}</td>
                     <td className="px-2 py-3">
-                      <Link
-                        to="/drivers/$driverId"
-                        params={{ driverId: d.id }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        aria-label="Open driver"
-                      >
-                        <ArrowUpRight className="h-4 w-4" />
-                      </Link>
+                      <div className="flex items-center gap-1">
+                        <Link
+                          to="/drivers/$driverId"
+                          params={{ driverId: d.id }}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          aria-label="Open driver"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                        <NewDriverDialog initialData={d} />
+                      </div>
                     </td>
                   </tr>
                 ))}
