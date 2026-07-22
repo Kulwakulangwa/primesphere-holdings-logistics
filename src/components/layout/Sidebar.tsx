@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   X,
+  Wrench, // ← Added for Maintenance
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const navItems = [
   { to: "/expenses", label: "Expenses", icon: Receipt },
   { to: "/customers", label: "Customers", icon: Building2 },
   { to: "/finance", label: "Finance", icon: LineChart },
+  { to: "/maintenance", label: "Maintenance", icon: Wrench }, // ← New entry
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/voucher", label: "Voucher", icon: Smartphone },
 ];
