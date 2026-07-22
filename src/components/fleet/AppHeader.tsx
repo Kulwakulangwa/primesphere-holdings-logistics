@@ -1,8 +1,9 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Truck, LayoutDashboard, Smartphone, Moon, Sun, Users, Receipt, Route as RouteIcon, LineChart, Building2, Settings } from "lucide-react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { Truck, LayoutDashboard, Smartphone, Moon, Sun, Users, Receipt, Route as RouteIcon, LineChart, Building2, Settings, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export function AppHeader({ right }: { right?: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
