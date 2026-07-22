@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { tripsQuery } from "@/lib/queries";
+import { tripsQuery, TripRow } from "@/lib/queries";
 import { fmtTZS, fmtUSD } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -34,6 +34,9 @@ function TripsPage() {
   const { data: trips = [] } = useQuery(tripsQuery);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
+
+  // State for editing trip
+  const [editingTrip, setEditingTrip] = useState<TripRow | null>(null);
 
   const advance = useMutation({
     mutationFn: async ({ id, next }: { id: string; next: string }) => {
@@ -75,6 +78,14 @@ function TripsPage() {
         </div>
         <NewTripDialog />
       </div>
+
+      {/* Edit trip dialog (controlled) */}
+      {editingTrip && (
+        <NewTripDialog
+          initialData={editingTrip}
+          onClose={() => setEditingTrip(null)}
+        />
+      )}
 
       <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
         {/* Search and filter bar */}
@@ -145,7 +156,7 @@ function TripsPage() {
                             <DropdownMenuItem onClick={() => nav({ to: "/trips/$tripId/audit", params: { tripId: t.id } })}>
                               <FileCheck className="h-4 w-4 mr-2" />Open audit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => nav({ to: "/trips/$tripId", params: { tripId: t.id } })}>
+                            <DropdownMenuItem onClick={() => setEditingTrip(t)}> {/* EDIT: open dialog */}
                               <Pencil className="h-4 w-4 mr-2" />Edit trip
                             </DropdownMenuItem>
                             {next && (
