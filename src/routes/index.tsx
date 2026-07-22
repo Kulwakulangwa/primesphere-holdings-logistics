@@ -9,13 +9,11 @@ import {
   ArrowUpRight,
   MapPin,
   Truck,
-  Plus,
 } from "lucide-react";
 
 import { NewTripDialog } from "@/components/fleet/NewTripDialog";
 import { StatusBadge } from "@/components/fleet/StatusBadge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { tripsQuery } from "@/lib/queries";
 import { fmtNum, fmtTZS, fmtUSD } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,15 +63,10 @@ function DashboardPage() {
           <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-xs text-muted-foreground">Real-time fleet overview</p>
         </div>
-        <NewTripDialog>
-          <Button size="sm" className="gap-1">
-            <Plus className="h-4 w-4" />
-            New Trip
-          </Button>
-        </NewTripDialog>
+        <NewTripDialog />   {/* ← Direct usage – the dialog has its own trigger button */}
       </div>
 
-      {/* Hero band with metrics – now without the hero text (moved to header) */}
+      {/* Metrics */}
       <div className="relative border-b bg-gradient-to-br from-primary/8 via-background to-accent/20">
         <div className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -125,7 +118,6 @@ function DashboardPage() {
           </Tabs>
         </div>
 
-        {/* Table (same as before) */}
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -208,5 +200,34 @@ function DashboardPage() {
   );
 }
 
-// MetricCard (unchanged)
-function MetricCard({ ... }) { ... } // keep the same as before
+// MetricCard component (fully defined)
+function MetricCard({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint: string;
+  tone: "primary" | "success" | "warning" | "accent";
+}) {
+  const toneMap = {
+    primary: "bg-primary/15 text-primary",
+    success: "bg-success/15 text-success",
+    warning: "bg-warning/25 text-warning-foreground dark:text-warning",
+    accent: "bg-accent text-accent-foreground",
+  };
+  return (
+    <div className="metric-card p-5 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div className={cn("grid h-10 w-10 place-items-center rounded-lg", toneMap[tone])}>{icon}</div>
+      </div>
+      <div className="mt-4 text-[11px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl md:text-3xl font-bold tracking-tight tabular">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+    </div>
+  );
+}
