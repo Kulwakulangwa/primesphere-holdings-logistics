@@ -20,8 +20,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { contractsQuery, customersQuery, driversQuery, vehiclesQuery } from "@/lib/queries";
 import { fmtTZS, fmtUSD } from "@/lib/format";
 import { NewDriverDialog } from "./NewDriverDialog";
+import { TripRow } from "@/lib/queries"; // needed for the `initialData` type
 
-export function NewTripDialog() {
+type NewTripDialogProps = {
+  initialData?: TripRow | null; // when provided, dialog opens in edit mode
+  onClose?: () => void; // called when dialog closes (success or cancel)
+  trigger?: React.ReactNode; // custom trigger – defaults to "New Trip" button
+};
+
+export function NewTripDialog({ initialData, onClose, trigger }: NewTripDialogProps) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const { data: vehicles } = useQuery({ ...vehiclesQuery, refetchOnMount: "always" });
@@ -29,6 +36,7 @@ export function NewTripDialog() {
   const { data: customers } = useQuery({ ...customersQuery, refetchOnMount: "always" });
   const { data: contracts } = useQuery({ ...contractsQuery, refetchOnMount: "always" });
 
+  // Form fields
   const [vehicleId, setVehicleId] = useState<string>("");
   const [driverId, setDriverId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string>("");
@@ -39,6 +47,49 @@ export function NewTripDialog() {
   const [fxRate, setFxRate] = useState("2600");
   const [advanceType, setAdvanceType] = useState<"percentage" | "fixed">("percentage");
   const [advanceValue, setAdvanceValue] = useState("70");
+
+  // When initialData is provided (edit mode), pre-fill the form and open the dialog
+  useEffect(() => {
+    if (initialData) {
+      setVehicleId(initialData.vehicle_id ?? "");
+      setDriverId(initialData.driver_id ?? "");
+      setCustomerId(initialData.customer_id ?? "");
+      setContractId(initialData.contract_id ?? "");
+      setRoute(initialData.origin_destination);
+      setPlannedKm(String(initialData.planned_km));
+      const fin = initialData.financial;
+      if (fin) {
+        setContractUsd(String(fin.contract_amount));
+        setFxRate(String(fin.fx_exchange_rate));
+        setAdvanceType(fin.advance_input_type as "percentage" | "fixed");
+        setAdvanceValue(String(fin.advance_value));
+      }
+      setOpen(true);
+    }
+  }, [initialData]);
+
+  const resetForm = () => {
+    if (!initialData) {
+      setVehicleId("");
+      setDriverId("");
+      setCustomerId("");
+      setContractId("");
+      setRoute("Dar es Salaam → Kasumbalesa");
+      setPlannedKm("4000");
+      setContractUsd("7200");
+      setFxRate("2600");
+      setAdvanceType("percentage");
+      setAdvanceValue("70");
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+      if (onClose) onClose();
+    }
+    setOpen(open);
+  };
 
   const availableContracts = useMemo(
     () => (contracts ?? []).filter((c) => !customerId || c.customer_id === customerId),
@@ -66,25 +117,41 @@ export function NewTripDialog() {
 
   const dispatch = useMutation({
     mutationFn: async () => {
-      const code = `TRIP-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-      const { data: trip, error: e1 } = await supabase
-        .from("trips")
-        .insert({
-          trip_code: code,
-          origin_destination: route,
-          vehicle_id: vehicleId || null,
-          driver_id: driverId || null,
-          customer_id: customerId || null,
-          contract_id: contractId || null,
-          planned_km: Number(plannedKm || 0),
-          dispatch_date: new Date().toISOString().slice(0, 10),
-          status: "Dispatched",
-        })
-        .select()
-        .single();
-      if (e1) throw e1;
-      const { error: e2 } = await supabase.from("trip_financials").insert({
-        trip_id: trip.id,
+      const code = initialData ? initialData.trip_code : `TRIP-${Date.now().toString(36).toUpperCase().slice(-6)}`;
+      const tripPayload = {
+        trip_code: code,
+        origin_destination: route,
+        vehicle_id: vehicleId || null,
+        driver_id: driverId || null,
+        customer_id: customerId || null,
+        contract_id: contractId || null,
+        planned_km: Number(plannedKm || 0),
+        dispatch_date: new Date().toISOString().slice(0, 10),
+        status: initialData ? initialData.status : "Dispatched",
+      };
+      let tripId: string;
+      if (initialData) {
+        // Update existing trip
+        const { error } = await supabase
+          .from("trips")
+          .update(tripPayload)
+          .eq("id", initialData.id);
+        if (error) throw error;
+        tripId = initialData.id;
+      } else {
+        // Insert new trip
+        const { data, error } = await supabase
+          .from("trips")
+          .insert(tripPayload)
+          .select()
+          .single();
+        if (error) throw error;
+        tripId = data.id;
+      }
+
+      // Upsert financials
+      const finPayload = {
+        trip_id: tripId,
         contract_currency: "USD",
         contract_amount: Number(contractUsd || 0),
         fx_exchange_rate: Number(fxRate || 0),
@@ -92,31 +159,55 @@ export function NewTripDialog() {
         advance_value: Number(advanceValue || 0),
         advance_paid_usd: advancePaidUsd,
         advance_paid_tzs: advancePaidTzs,
-      });
-      if (e2) throw e2;
-      return trip;
+      };
+      if (initialData?.financial) {
+        // Update existing financials
+        const { error } = await supabase
+          .from("trip_financials")
+          .update(finPayload)
+          .eq("trip_id", tripId);
+        if (error) throw error;
+      } else {
+        // Insert new financials
+        const { error } = await supabase
+          .from("trip_financials")
+          .insert(finPayload);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trips"] });
-      toast.success("Trip dispatched");
+      toast.success(initialData ? "Trip updated" : "Trip dispatched");
       setOpen(false);
+      if (onClose) onClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const defaultTrigger = (
+    <Button className="gap-2">
+      <Plus className="h-4 w-4" />
+      New Trip
+    </Button>
+  );
+
+  const isControlled = initialData !== undefined;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Trip
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger || defaultTrigger}
+        </DialogTrigger>
+      )}
+      {/* In controlled mode (edit), we don't use DialogTrigger – the dialog is opened via the effect */}
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Dispatch new trip</DialogTitle>
+          <DialogTitle>{initialData ? "Edit trip" : "Dispatch new trip"}</DialogTitle>
           <DialogDescription>
-            Assign vehicle and driver, log the freight contract, and pay the cash advance.
+            {initialData
+              ? "Update trip details, vehicle, driver, and financials."
+              : "Assign vehicle and driver, log the freight contract, and pay the cash advance."}
           </DialogDescription>
         </DialogHeader>
 
@@ -153,7 +244,6 @@ export function NewTripDialog() {
                 </SelectContent>
               </Select>
             </div>
-
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -271,7 +361,7 @@ export function NewTripDialog() {
             className="gap-2"
           >
             {dispatch.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Dispatch trip
+            {initialData ? "Update trip" : "Dispatch trip"}
           </Button>
         </DialogFooter>
       </DialogContent>
