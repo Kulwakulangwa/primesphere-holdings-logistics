@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VoucherRouteImport } from './routes/voucher'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VehiclesIndexRouteImport } from './routes/vehicles.index'
 import { Route as TripsIndexRouteImport } from './routes/trips.index'
@@ -27,6 +28,11 @@ import { Route as ApiPublicBootstrapUserRouteImport } from './routes/api/public/
 const VoucherRoute = VoucherRouteImport.update({
   id: '/voucher',
   path: '/voucher',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -97,6 +103,7 @@ const ApiPublicBootstrapUserRoute = ApiPublicBootstrapUserRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/voucher': typeof VoucherRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/drivers/$driverId': typeof DriversDriverIdRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/voucher': typeof VoucherRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/drivers/$driverId': typeof DriversDriverIdRoute
@@ -130,6 +138,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/voucher': typeof VoucherRoute
   '/customers/$customerId': typeof CustomersCustomerIdRoute
   '/drivers/$driverId': typeof DriversDriverIdRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/voucher'
     | '/customers/$customerId'
     | '/drivers/$driverId'
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/voucher'
     | '/customers/$customerId'
     | '/drivers/$driverId'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/auth'
     | '/voucher'
     | '/customers/$customerId'
     | '/drivers/$driverId'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   VoucherRoute: typeof VoucherRoute
   CustomersCustomerIdRoute: typeof CustomersCustomerIdRoute
   DriversDriverIdRoute: typeof DriversDriverIdRoute
@@ -218,6 +231,13 @@ declare module '@tanstack/react-router' {
       path: '/voucher'
       fullPath: '/voucher'
       preLoaderRoute: typeof VoucherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -328,6 +348,7 @@ const TripsTripIdRouteWithChildren = TripsTripIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   VoucherRoute: VoucherRoute,
   CustomersCustomerIdRoute: CustomersCustomerIdRoute,
   DriversDriverIdRoute: DriversDriverIdRoute,
