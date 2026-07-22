@@ -73,17 +73,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FleetPulse — Fleet Transit & Trip Expense Management" },
+      { title: "Primesphere Holdings Logistics – Fleet Management" },
       {
         name: "description",
         content:
-          "Real-time fleet operations dashboard, driver cash advance tracker, and multi-currency trip expense ledger for long-haul freight corridors.",
+          "Real-time fleet operations dashboard for Primesphere Holdings Logistics – track trips, driver advances, expenses, and settlements.",
       },
-      { name: "author", content: "FleetPulse" },
-      { property: "og:title", content: "FleetPulse — Fleet Transit Ops" },
+      { name: "author", content: "Primesphere Holdings Logistics" },
+      { property: "og:title", content: "Primesphere Holdings Logistics – Fleet Ops" },
       {
         property: "og:description",
-        content: "Replace manual Excel trip sheets with a live operations dashboard and driver expense audit.",
+        content: "Replace manual Excel trip sheets with a live operations dashboard and driver expense audit for Primesphere Holdings.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
