@@ -5,7 +5,7 @@ import { Download, DollarSign, TrendingDown, TrendingUp, Wallet, Users, FileText
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend,
 } from "recharts";
-import { AppHeader } from "@/components/fleet/AppHeader";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/finance/")({
   component: FinancePage,
   head: () => ({
     meta: [
-      { title: "Finance & Reports — FleetPulse" },
+      { title: "Finance & Reports — Primesphere Holdings Logistics" },
       { name: "description", content: "Executive finance dashboard, profitability and payroll reports." },
     ],
   }),
@@ -79,7 +79,7 @@ function FinancePage() {
     return { trips, fins, exps, pays, revenueTzs, revenueUsd, expensesTzs, profitTzs, outstandingAdv, salary, activeContracts, chart };
   }, [data, from, to]);
 
-  if (!data || !view) return <div className="min-h-screen"><AppHeader /><div className="p-10 text-muted-foreground">Loading…</div></div>;
+  if (!data || !view) return <div className="min-h-screen bg-background"><div className="p-10 text-muted-foreground">Loading…</div></div>;
 
   const driverMap = new Map(data.drivers.map((d) => [d.id, d.full_name]));
 
@@ -125,13 +125,16 @@ function FinancePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Finance &amp; Reports</h1>
-          <p className="text-sm text-muted-foreground">Executive dashboard with live profitability, payroll and fuel reports.</p>
+      {/* Page header */}
+      <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Finance &amp; Reports</h1>
+          <p className="text-xs text-muted-foreground">Executive dashboard with live profitability, payroll and fuel reports.</p>
         </div>
+        {/* No action button for this page */}
+      </div>
 
+      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
         <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4">
           <div className="grid gap-1.5"><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" /></div>
           <div className="grid gap-1.5"><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" /></div>
