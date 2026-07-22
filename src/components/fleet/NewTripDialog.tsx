@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Loader2, Truck, User } from "lucide-react";
+import { Plus, Loader2, Truck, User, Building2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
-import { driversQuery, vehiclesQuery } from "@/lib/queries";
+import { contractsQuery, customersQuery, driversQuery, vehiclesQuery } from "@/lib/queries";
 import { fmtTZS, fmtUSD } from "@/lib/format";
 import { NewDriverDialog } from "./NewDriverDialog";
 
@@ -26,10 +26,13 @@ export function NewTripDialog() {
   const [open, setOpen] = useState(false);
   const { data: vehicles } = useQuery({ ...vehiclesQuery, refetchOnMount: "always" });
   const { data: drivers } = useQuery({ ...driversQuery, refetchOnMount: "always" });
-
+  const { data: customers } = useQuery({ ...customersQuery, refetchOnMount: "always" });
+  const { data: contracts } = useQuery({ ...contractsQuery, refetchOnMount: "always" });
 
   const [vehicleId, setVehicleId] = useState<string>("");
   const [driverId, setDriverId] = useState<string>("");
+  const [customerId, setCustomerId] = useState<string>("");
+  const [contractId, setContractId] = useState<string>("");
   const [route, setRoute] = useState("Dar es Salaam → Kasumbalesa");
   const [plannedKm, setPlannedKm] = useState("4000");
   const [contractUsd, setContractUsd] = useState("7200");
