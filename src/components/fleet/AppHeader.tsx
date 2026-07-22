@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Truck, LayoutDashboard, Smartphone, Moon, Sun, Users, Receipt } from "lucide-react";
+import { Truck, LayoutDashboard, Smartphone, Moon, Sun, Users, Receipt, Route as RouteIcon, LineChart, Building2, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,10 +24,14 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
 
   const nav = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/trips", label: "Trips", icon: RouteIcon },
     { to: "/vehicles", label: "Vehicles", icon: Truck },
     { to: "/drivers", label: "Drivers", icon: Users },
     { to: "/expenses", label: "Expenses", icon: Receipt },
-    { to: "/voucher", label: "Driver Voucher", icon: Smartphone },
+    { to: "/customers", label: "Customers", icon: Building2 },
+    { to: "/finance", label: "Finance", icon: LineChart },
+    { to: "/settings", label: "Settings", icon: Settings },
+    { to: "/voucher", label: "Voucher", icon: Smartphone },
   ];
 
 

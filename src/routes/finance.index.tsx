@@ -1,0 +1,252 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Download, DollarSign, TrendingDown, TrendingUp, Wallet, Users, FileText } from "lucide-react";
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend,
+} from "recharts";
+import { AppHeader } from "@/components/fleet/AppHeader";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { financeOverviewQuery } from "@/lib/queries";
+import { fmtTZS, fmtUSD, fmtNum } from "@/lib/format";
+import { downloadCsv } from "@/lib/export";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/finance/")({
+  component: FinancePage,
+  head: () => ({
+    meta: [
+      { title: "Finance & Reports — FleetPulse" },
+      { name: "description", content: "Executive finance dashboard, profitability and payroll reports." },
+    ],
+  }),
+});
+
+function FinancePage() {
+  const { data } = useQuery(financeOverviewQuery);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const view = useMemo(() => {
+    if (!data) return null;
+    const inRange = (d: string | null) => {
+      if (!d) return true;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    };
+    const trips = data.trips.filter((t) => inRange(t.dispatch_date));
+    const tripIds = new Set(trips.map((t) => t.id));
+    const fins = data.financials.filter((f) => tripIds.has(f.trip_id));
+    const exps = data.expenses.filter((e) => tripIds.has(e.trip_id));
+    const pays = data.payments.filter((p) => inRange(p.payment_date));
+
+    const revenueTzs = fins.reduce((s, f) => s + Number(f.total_contract_tzs ?? Number(f.contract_amount) * Number(f.fx_exchange_rate)), 0);
+    const revenueUsd = fins.reduce((s, f) => s + Number(f.contract_amount), 0);
+    const expensesTzs = exps.filter((e) => e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
+    const profitTzs = revenueTzs - expensesTzs;
+    const outstandingAdv = fins.reduce((s, f) => s + Number(f.advance_paid_tzs), 0) -
+      exps.filter((e) => e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
+    const salary = pays.filter((p) => p.payment_type === "Salary").reduce((s, p) => s + Number(p.amount_tzs), 0);
+    const activeContracts = data.contracts.filter((c) => c.status === "Active").length;
+
+    // monthly buckets
+    const monthly = new Map<string, { rev: number; exp: number; fuel: number }>();
+    for (const f of fins) {
+      const t = trips.find((x) => x.id === f.trip_id);
+      const key = (t?.dispatch_date ?? "").slice(0, 7) || "unknown";
+      const m = monthly.get(key) ?? { rev: 0, exp: 0, fuel: 0 };
+      m.rev += Number(f.total_contract_tzs ?? Number(f.contract_amount) * Number(f.fx_exchange_rate));
+      monthly.set(key, m);
+    }
+    for (const e of exps) {
+      if (e.status !== "Verified") continue;
+      const t = trips.find((x) => x.id === e.trip_id);
+      const key = (t?.dispatch_date ?? e.created_at.slice(0, 10)).slice(0, 7);
+      const m = monthly.get(key) ?? { rev: 0, exp: 0, fuel: 0 };
+      m.exp += Number(e.amount_tzs);
+      if (e.category === "Fuel") m.fuel += Number(e.amount_tzs);
+      monthly.set(key, m);
+    }
+    const chart = [...monthly.entries()]
+      .filter(([k]) => k !== "unknown")
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, v]) => ({ month, revenue: Math.round(v.rev), expenses: Math.round(v.exp), profit: Math.round(v.rev - v.exp), fuel: Math.round(v.fuel) }));
+
+    return { trips, fins, exps, pays, revenueTzs, revenueUsd, expensesTzs, profitTzs, outstandingAdv, salary, activeContracts, chart };
+  }, [data, from, to]);
+
+  if (!data || !view) return <div className="min-h-screen"><AppHeader /><div className="p-10 text-muted-foreground">Loading…</div></div>;
+
+  const driverMap = new Map(data.drivers.map((d) => [d.id, d.full_name]));
+
+  const profitability = view.trips.map((t) => {
+    const f = view.fins.find((x) => x.trip_id === t.id);
+    const rev = Number(f?.total_contract_tzs ?? 0);
+    const exp = view.exps.filter((e) => e.trip_id === t.id && e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
+    return {
+      trip_code: t.trip_code, route: t.origin_destination, status: t.status,
+      revenue_tzs: rev, expenses_tzs: exp, profit_tzs: rev - exp,
+      margin_pct: rev ? Number(((rev - exp) / rev * 100).toFixed(1)) : 0,
+    };
+  });
+
+  const advanceRep = data.drivers.map((d) => {
+    const dtrips = view.trips.filter((t) => t.driver_id === d.id);
+    const adv = dtrips.reduce((s, t) => s + Number(view.fins.find((f) => f.trip_id === t.id)?.advance_paid_tzs ?? 0), 0);
+    const spent = view.exps.filter((e) => e.status === "Verified" && dtrips.some((t) => t.id === e.trip_id)).reduce((s, e) => s + Number(e.amount_tzs), 0);
+    return { driver: d.full_name, trips: dtrips.length, advance_tzs: adv, spent_tzs: spent, outstanding_tzs: adv - spent };
+  });
+
+  const salaryRep = data.drivers.map((d) => {
+    const paid = view.pays.filter((p) => p.driver_id === d.id && p.payment_type === "Salary").reduce((s, p) => s + Number(p.amount_tzs), 0);
+    return { driver: d.full_name, base_salary_tzs: d.monthly_salary_tzs, paid_tzs: paid };
+  });
+
+  const fuelRep = view.exps.filter((e) => e.category === "Fuel").map((e) => ({
+    trip_code: view.trips.find((t) => t.id === e.trip_id)?.trip_code ?? "—",
+    driver: driverMap.get(view.trips.find((t) => t.id === e.trip_id)?.driver_id ?? "") ?? "—",
+    liters: Number(e.volume_liters ?? 0), amount_tzs: Number(e.amount_tzs), status: e.status, date: e.created_at.slice(0, 10),
+  }));
+
+  const revenueRep = view.trips.map((t) => {
+    const f = view.fins.find((x) => x.trip_id === t.id);
+    return { trip_code: t.trip_code, dispatch_date: t.dispatch_date, route: t.origin_destination,
+      contract_usd: Number(f?.contract_amount ?? 0), contract_tzs: Number(f?.total_contract_tzs ?? 0), status: t.status };
+  });
+
+  const expenseRep = view.exps.map((e) => ({
+    trip_code: view.trips.find((t) => t.id === e.trip_id)?.trip_code ?? "—",
+    category: e.category, amount_tzs: Number(e.amount_tzs), status: e.status, date: e.created_at.slice(0, 10),
+  }));
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Finance &amp; Reports</h1>
+          <p className="text-sm text-muted-foreground">Executive dashboard with live profitability, payroll and fuel reports.</p>
+        </div>
+
+        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4">
+          <div className="grid gap-1.5"><Label className="text-xs">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" /></div>
+          <div className="grid gap-1.5"><Label className="text-xs">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" /></div>
+          <Button variant="ghost" size="sm" onClick={() => { setFrom(""); setTo(""); }}>Reset</Button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-8">
+          <KPI icon={<DollarSign className="h-4 w-4" />} label="Total revenue" value={fmtTZS(view.revenueTzs)} sub={fmtUSD(view.revenueUsd)} tone="primary" />
+          <KPI icon={<TrendingDown className="h-4 w-4" />} label="Total expenses" value={fmtTZS(view.expensesTzs)} sub="Verified only" tone="warning" />
+          <KPI icon={<TrendingUp className="h-4 w-4" />} label="Total profit" value={fmtTZS(view.profitTzs)} sub="Revenue − expenses" tone={view.profitTzs >= 0 ? "success" : "destructive"} />
+          <KPI icon={<Wallet className="h-4 w-4" />} label="Outstanding advances" value={fmtTZS(view.outstandingAdv)} sub="Advance − spent" tone="warning" />
+          <KPI icon={<Users className="h-4 w-4" />} label="Salary costs" value={fmtTZS(view.salary)} sub="Payments in range" tone="accent" />
+          <KPI icon={<FileText className="h-4 w-4" />} label="Active contracts" value={String(view.activeContracts)} sub="Signed &amp; running" tone="primary" />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2 mb-8">
+          <ChartCard title="Monthly revenue vs expenses">
+            <BarChart data={view.chart}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => fmtNum(v / 1000) + "k"} />
+              <Tooltip formatter={(v: number) => fmtTZS(v)} /><Legend />
+              <Bar dataKey="revenue" fill="hsl(var(--primary))" />
+              <Bar dataKey="expenses" fill="hsl(var(--destructive))" />
+            </BarChart>
+          </ChartCard>
+          <ChartCard title="Profit trend & fuel costs">
+            <LineChart data={view.chart}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => fmtNum(v / 1000) + "k"} />
+              <Tooltip formatter={(v: number) => fmtTZS(v)} /><Legend />
+              <Line type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} />
+              <Line type="monotone" dataKey="fuel" stroke="hsl(var(--warning))" strokeWidth={2} />
+            </LineChart>
+          </ChartCard>
+        </div>
+
+        <Tabs defaultValue="profit">
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="profit">Trip Profitability</TabsTrigger>
+            <TabsTrigger value="advance">Driver Advance</TabsTrigger>
+            <TabsTrigger value="salary">Driver Salary</TabsTrigger>
+            <TabsTrigger value="fuel">Fuel Consumption</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue</TabsTrigger>
+            <TabsTrigger value="expense">Expense</TabsTrigger>
+          </TabsList>
+          <TabsContent value="profit"><ReportTable name="trip-profitability" rows={profitability} /></TabsContent>
+          <TabsContent value="advance"><ReportTable name="driver-advance" rows={advanceRep} /></TabsContent>
+          <TabsContent value="salary"><ReportTable name="driver-salary" rows={salaryRep} /></TabsContent>
+          <TabsContent value="fuel"><ReportTable name="fuel-consumption" rows={fuelRep} /></TabsContent>
+          <TabsContent value="revenue"><ReportTable name="revenue" rows={revenueRep} /></TabsContent>
+          <TabsContent value="expense"><ReportTable name="expense" rows={expenseRep} /></TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+}
+
+function KPI({ icon, label, value, sub, tone }: { icon: React.ReactNode; label: string; value: string; sub: string; tone: "primary" | "success" | "warning" | "destructive" | "accent" }) {
+  const map = {
+    primary: "bg-primary/10 text-primary",
+    success: "bg-success/10 text-success",
+    warning: "bg-warning/20 text-warning-foreground dark:text-warning",
+    destructive: "bg-destructive/10 text-destructive",
+    accent: "bg-muted text-foreground",
+  };
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className={cn("mb-2 inline-grid h-8 w-8 place-items-center rounded", map[tone])}>{icon}</div>
+      <div className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-bold tabular">{value}</div>
+      <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactElement }) {
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-3 text-sm font-semibold">{title}</div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function ReportTable({ name, rows }: { name: string; rows: Record<string, unknown>[] }) {
+  const headers = rows[0] ? Object.keys(rows[0]) : [];
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={() => downloadCsv(`${name}.csv`, rows)} className="gap-1.5"><Download className="h-4 w-4" />CSV</Button>
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1.5"><Download className="h-4 w-4" />PDF (print)</Button>
+      </div>
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="overflow-x-auto max-h-[500px]">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground sticky top-0">
+              <tr>{headers.map((h) => <th key={h} className="px-4 py-3 font-medium">{h.replace(/_/g, " ")}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && <tr><td colSpan={Math.max(headers.length, 1)} className="px-4 py-10 text-center text-muted-foreground">No data.</td></tr>}
+              {rows.map((r, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  {headers.map((h) => {
+                    const v = r[h];
+                    const isNum = typeof v === "number";
+                    return <td key={h} className={cn("px-4 py-2", isNum && "text-right tabular")}>{isNum ? fmtNum(v as number) : String(v ?? "—")}</td>;
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
