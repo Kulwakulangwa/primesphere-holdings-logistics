@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { customersQuery, tripsQuery } from "@/lib/queries";
-import { fmtTZS, generateInvoiceNumber } from "@/lib/utils";
+import { fmtTZS } from "@/lib/format"; // <-- correct import
+import { generateInvoiceNumber } from "@/lib/utils"; // <-- correct import
 import { cn } from "@/lib/utils";
 
 export function NewInvoiceDialog() {
