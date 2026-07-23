@@ -15,6 +15,7 @@ import {
   X,
   Wrench,
   User,
+  FileText, // <-- ADDED
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/customers", label: "Customers", icon: Building2 },
   { to: "/finance", label: "Finance", icon: LineChart },
   { to: "/maintenance", label: "Maintenance", icon: Wrench },
+  { to: "/invoices", label: "Invoices", icon: FileText }, // <-- ADDED
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/voucher", label: "Voucher", icon: Smartphone },
 ];
@@ -95,7 +97,6 @@ export function Sidebar() {
               <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-primary/20">
                 <span className="text-lg font-bold">{initial}</span>
               </div>
-              {/* Online status dot */}
               <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full border-2 border-background bg-emerald-500 ring-2 ring-emerald-500/30" />
             </div>
             {!collapsed && (
@@ -105,7 +106,6 @@ export function Sidebar() {
               </div>
             )}
           </div>
-          {/* Optional: small badge or extra info – we can leave as is */}
         </div>
 
         {/* Navigation */}
