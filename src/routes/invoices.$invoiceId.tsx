@@ -77,7 +77,8 @@ function InvoiceDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between gap-3 flex-wrap">
+      {/* Page header – hidden when printing */}
+      <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between gap-3 flex-wrap print:hidden">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/invoices" })} className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
@@ -105,95 +106,108 @@ function InvoiceDetailPage() {
         </div>
       </div>
 
+      {/* Invoice content – visible both on screen and print */}
       <main className="mx-auto max-w-[1200px] px-4 md:px-6 py-6">
-        <div className="grid gap-6">
-          {/* Summary cards */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border bg-card p-4">
-              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Total</div>
-              <div className="mt-1 text-2xl font-bold">{fmtTZS(total_amount_tzs)}</div>
-            </div>
-            <div className="rounded-xl border bg-card p-4">
-              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Paid</div>
-              <div className="mt-1 text-2xl font-bold text-success">{fmtTZS(paid_amount_tzs)}</div>
-            </div>
-            <div className="rounded-xl border bg-card p-4">
-              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Balance</div>
-              <div className="mt-1 text-2xl font-bold">{fmtTZS(balance)}</div>
-            </div>
+        {/* Summary cards – hidden when printing */}
+        <div className="grid gap-3 sm:grid-cols-3 print:hidden">
+          <div className="rounded-xl border bg-card p-4">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Total</div>
+            <div className="mt-1 text-2xl font-bold">{fmtTZS(total_amount_tzs)}</div>
           </div>
-
-          {/* Trip list */}
-          <div className="rounded-xl border bg-card">
-            <div className="border-b bg-muted/40 px-4 py-3 text-sm font-semibold">Trips included</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-muted/20 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 font-medium">Trip</th>
-                    <th className="px-4 py-2 font-medium">Route</th>
-                    <th className="px-4 py-2 font-medium">Vehicle</th>
-                    <th className="px-4 py-2 font-medium text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trips?.length === 0 && (
-                    <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No trips linked.</td></tr>
-                  )}
-                  {trips?.map((t) => (
-                    <tr key={t.id} className="border-b last:border-0">
-                      <td className="px-4 py-2 font-mono text-xs">
-                        <Link to="/trips/$tripId" params={{ tripId: t.id }} className="hover:underline">{t.trip_code}</Link>
-                      </td>
-                      <td className="px-4 py-2">{t.origin_destination}</td>
-                      <td className="px-4 py-2">{t.vehicle?.reg_number || "—"}</td>
-                      <td className="px-4 py-2 text-right">{fmtTZS(t.financial?.contract_amount)}</td>
-                    </tr>
-                  ))}
-                  <tfoot className="bg-muted/60">
-                    <tr>
-                      <td colSpan={3} className="px-4 py-2 text-right font-semibold">Subtotal</td>
-                      <td className="px-4 py-2 text-right">{fmtTZS(subtotal_tzs)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={3} className="px-4 py-2 text-right">VAT (18%)</td>
-                      <td className="px-4 py-2 text-right">{fmtTZS(vat_amount_tzs)}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={3} className="px-4 py-2 text-right font-bold">Total</td>
-                      <td className="px-4 py-2 text-right font-bold">{fmtTZS(total_amount_tzs)}</td>
-                    </tr>
-                  </tfoot>
-                </tbody>
-              </table>
-            </div>
+          <div className="rounded-xl border bg-card p-4">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Paid</div>
+            <div className="mt-1 text-2xl font-bold text-success">{fmtTZS(paid_amount_tzs)}</div>
           </div>
-
-          {/* Record payment */}
-          {status !== "Paid" && (
-            <div className="rounded-xl border bg-card p-4 max-w-md">
-              <h3 className="text-sm font-semibold mb-3">Record payment</h3>
-              <div className="flex gap-3">
-                <div className="grid gap-1.5 flex-1">
-                  <Label>Amount (TZS)</Label>
-                  <Input
-                    inputMode="decimal"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <Button
-                  onClick={() => recordPayment.mutate()}
-                  disabled={!paymentAmount || recordPayment.isPending}
-                  className="self-end gap-2"
-                >
-                  <DollarSign className="h-4 w-4" /> Record
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="rounded-xl border bg-card p-4">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Balance</div>
+            <div className="mt-1 text-2xl font-bold">{fmtTZS(balance)}</div>
+          </div>
         </div>
+
+        {/* Invoice header – visible only when printing */}
+        <div className="hidden print:block mb-6">
+          <h1 className="text-2xl font-bold">TAX INVOICE</h1>
+          <p className="text-sm text-muted-foreground">Invoice #: {invoice_number}</p>
+          <p className="text-sm">Customer: {customer?.company_name}</p>
+          <p className="text-sm">Period: {new Date(period_start).toLocaleDateString()} – {new Date(period_end).toLocaleDateString()}</p>
+          <p className="text-sm">Date: {new Date().toLocaleDateString()}</p>
+          <hr className="my-2" />
+        </div>
+
+        {/* Trip list */}
+        <div className="rounded-xl border bg-card print:border-0 print:shadow-none">
+          <div className="border-b bg-muted/40 px-4 py-3 text-sm font-semibold print:bg-transparent print:border-b-2 print:border-black">
+            Trips included
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/20 text-left text-[11px] uppercase tracking-wider text-muted-foreground print:bg-transparent print:text-black print:border-b-2 print:border-black">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Trip</th>
+                  <th className="px-4 py-2 font-medium">Route</th>
+                  <th className="px-4 py-2 font-medium">Vehicle</th>
+                  <th className="px-4 py-2 font-medium text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trips?.length === 0 && (
+                  <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No trips linked.</td></tr>
+                )}
+                {trips?.map((t) => (
+                  <tr key={t.id} className="border-b last:border-0 print:border-b-2 print:border-black">
+                    <td className="px-4 py-2 font-mono text-xs">
+                      <Link to="/trips/$tripId" params={{ tripId: t.id }} className="hover:underline print:no-underline print:text-black">
+                        {t.trip_code}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2">{t.origin_destination}</td>
+                    <td className="px-4 py-2">{t.vehicle?.reg_number || "—"}</td>
+                    <td className="px-4 py-2 text-right">{fmtTZS(t.financial?.contract_amount)}</td>
+                  </tr>
+                ))}
+                <tfoot className="bg-muted/60 print:bg-transparent">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2 text-right font-semibold">Subtotal</td>
+                    <td className="px-4 py-2 text-right">{fmtTZS(subtotal_tzs)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2 text-right">VAT (18%)</td>
+                    <td className="px-4 py-2 text-right">{fmtTZS(vat_amount_tzs)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2 text-right font-bold">Total</td>
+                    <td className="px-4 py-2 text-right font-bold">{fmtTZS(total_amount_tzs)}</td>
+                  </tr>
+                </tfoot>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Record payment – hidden when printing */}
+        {status !== "Paid" && (
+          <div className="rounded-xl border bg-card p-4 max-w-md mt-6 print:hidden">
+            <h3 className="text-sm font-semibold mb-3">Record payment</h3>
+            <div className="flex gap-3">
+              <div className="grid gap-1.5 flex-1">
+                <Label>Amount (TZS)</Label>
+                <Input
+                  inputMode="decimal"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <Button
+                onClick={() => recordPayment.mutate()}
+                disabled={!paymentAmount || recordPayment.isPending}
+                className="self-end gap-2"
+              >
+                <DollarSign className="h-4 w-4" /> Record
+              </Button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
