@@ -16,6 +16,7 @@ import {
 import { tripsQuery, TripRow } from "@/lib/queries";
 import { fmtTZS, fmtUSD } from "@/lib/format";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils"; // <-- ADDED
 
 export const Route = createFileRoute("/trips/")({
   component: TripsPage,
