@@ -48,11 +48,11 @@ export type Trip = {
   settled_at: string | null;
   audited_at: string | null;
   created_at: string;
-  // NEW: local trip fields
   trip_type: string; // 'border' or 'local'
   quantity: number;
   rate_per_unit: number;
   local_calculation_type: string; // 'two_way' or 'one_way'
+  invoice_id: string | null; // NEW
 };
 
 export type TripFinancial = {
@@ -67,6 +67,7 @@ export type TripFinancial = {
   advance_paid_usd: number;
   advance_paid_tzs: number;
   created_at: string;
+  customer_paid_tzs: number; // NEW
 };
 
 export type TripExpense = {
@@ -102,8 +103,7 @@ export type Contract = {
   end_date: string | null;
   status: string;
   created_at: string;
-  // NEW: contract type for local
-  contract_type?: string; // 'border' or 'local'
+  contract_type?: string;
   renewal_date?: string | null;
   termination_date?: string | null;
   notice_period_days?: number | null;
@@ -174,6 +174,27 @@ export type CustomerRow = Customer & {
   trip_count: number;
   contract_count: number;
   revenue_usd: number;
+};
+
+// ===== INVOICE TYPES =====
+export type Invoice = {
+  id: string;
+  customer_id: string;
+  invoice_number: string;
+  period_start: string;
+  period_end: string;
+  subtotal_tzs: number;
+  vat_percent: number;
+  vat_amount_tzs: number;
+  total_amount_tzs: number;
+  paid_amount_tzs: number;
+  status: "Draft" | "Sent" | "Partially Paid" | "Paid";
+  sent_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+  customer?: Customer | null;
+  trips?: TripRow[] | null;
 };
 
 // ========== QUERIES ==========
@@ -471,7 +492,39 @@ export const auditLogsQuery = queryOptions({
   },
 });
 
-// ===== UPDATED: financeOverviewQuery with maintenance costs =====
+// ===== INVOICE QUERIES =====
+export const invoicesQuery = queryOptions({
+  queryKey: ["invoices"],
+  queryFn: async (): Promise<Invoice[]> => {
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("*, customer:customers(*)")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data as Invoice[];
+  },
+});
+
+export const invoiceDetailQuery = (invoiceId: string) =>
+  queryOptions({
+    queryKey: ["invoice", invoiceId],
+    queryFn: async () => {
+      const { data: invoice, error } = await supabase
+        .from("invoices")
+        .select("*, customer:customers(*)")
+        .eq("id", invoiceId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!invoice) return null;
+      const { data: trips } = await supabase
+        .from("trips")
+        .select("*, vehicle:vehicles(*), driver:drivers(*), financial:trip_financials(*)")
+        .eq("invoice_id", invoiceId);
+      return { ...invoice, trips: trips ?? [] } as Invoice & { trips: TripRow[] };
+    },
+  });
+
+// ===== FINANCE OVERVIEW =====
 export const financeOverviewQuery = queryOptions({
   queryKey: ["finance", "overview"],
   queryFn: async () => {
@@ -497,6 +550,11 @@ export const financeOverviewQuery = queryOptions({
       .filter((m) => m.status === "Completed")
       .reduce((sum, m) => sum + Number(m.cost_tzs), 0);
 
+    // Invoice metrics (optional)
+    const { data: invoices } = await supabase.from("invoices").select("*");
+    const totalInvoiced = (invoices ?? []).reduce((s, inv) => s + Number(inv.total_amount_tzs), 0);
+    const totalPaid = (invoices ?? []).reduce((s, inv) => s + Number(inv.paid_amount_tzs), 0);
+
     return {
       trips: (trips ?? []) as Trip[],
       financials: (fins ?? []) as TripFinancial[],
@@ -505,6 +563,8 @@ export const financeOverviewQuery = queryOptions({
       drivers: (drivers ?? []) as Driver[],
       contracts: (contracts ?? []) as Contract[],
       maintenanceCost,
+      totalInvoiced,
+      totalPaid,
     };
   },
 });
