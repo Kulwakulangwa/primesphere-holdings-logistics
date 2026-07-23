@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Download, DollarSign, TrendingDown, TrendingUp, Wallet, Users, FileText } from "lucide-react";
+import { Download, DollarSign, TrendingDown, TrendingUp, Wallet, Users, FileText, Wrench } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, Legend,
 } from "recharts";
@@ -53,6 +53,10 @@ function FinancePage() {
     const salary = pays.filter((p) => p.payment_type === "Salary").reduce((s, p) => s + Number(p.amount_tzs), 0);
     const activeContracts = data.contracts.filter((c) => c.status === "Active").length;
 
+    // --- NEW: maintenance costs ---
+    const maintenanceCost = data.maintenanceCost ?? 0;
+    const profitAfterMaintenance = profitTzs - maintenanceCost;
+
     // monthly buckets
     const monthly = new Map<string, { rev: number; exp: number; fuel: number }>();
     for (const f of fins) {
@@ -76,7 +80,7 @@ function FinancePage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, v]) => ({ month, revenue: Math.round(v.rev), expenses: Math.round(v.exp), profit: Math.round(v.rev - v.exp), fuel: Math.round(v.fuel) }));
 
-    return { trips, fins, exps, pays, revenueTzs, revenueUsd, expensesTzs, profitTzs, outstandingAdv, salary, activeContracts, chart };
+    return { trips, fins, exps, pays, revenueTzs, revenueUsd, expensesTzs, profitTzs, outstandingAdv, salary, activeContracts, chart, maintenanceCost, profitAfterMaintenance };
   }, [data, from, to]);
 
   if (!data || !view) return <div className="min-h-screen bg-background"><div className="p-10 text-muted-foreground">Loading…</div></div>;
@@ -131,7 +135,6 @@ function FinancePage() {
           <h1 className="text-xl font-bold tracking-tight">Finance &amp; Reports</h1>
           <p className="text-xs text-muted-foreground">Executive dashboard with live profitability, payroll and fuel reports.</p>
         </div>
-        {/* No action button for this page */}
       </div>
 
       <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
@@ -141,13 +144,15 @@ function FinancePage() {
           <Button variant="ghost" size="sm" onClick={() => { setFrom(""); setTo(""); }}>Reset</Button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-8">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 mb-8">
           <KPI icon={<DollarSign className="h-4 w-4" />} label="Total revenue" value={fmtTZS(view.revenueTzs)} sub={fmtUSD(view.revenueUsd)} tone="primary" />
-          <KPI icon={<TrendingDown className="h-4 w-4" />} label="Total expenses" value={fmtTZS(view.expensesTzs)} sub="Verified only" tone="warning" />
-          <KPI icon={<TrendingUp className="h-4 w-4" />} label="Total profit" value={fmtTZS(view.profitTzs)} sub="Revenue − expenses" tone={view.profitTzs >= 0 ? "success" : "destructive"} />
+          <KPI icon={<TrendingDown className="h-4 w-4" />} label="Trip expenses" value={fmtTZS(view.expensesTzs)} sub="Verified only" tone="warning" />
+          <KPI icon={<TrendingUp className="h-4 w-4" />} label="Trip profit" value={fmtTZS(view.profitTzs)} sub="Revenue − expenses" tone={view.profitTzs >= 0 ? "success" : "destructive"} />
+          <KPI icon={<Wrench className="h-4 w-4" />} label="Fleet maintenance" value={fmtTZS(view.maintenanceCost)} sub="Completed jobs" tone="accent" />
+          <KPI icon={<TrendingUp className="h-4 w-4" />} label="Net profit" value={fmtTZS(view.profitAfterMaintenance)} sub="Profit − maintenance" tone={view.profitAfterMaintenance >= 0 ? "success" : "destructive"} />
           <KPI icon={<Wallet className="h-4 w-4" />} label="Outstanding advances" value={fmtTZS(view.outstandingAdv)} sub="Advance − spent" tone="warning" />
           <KPI icon={<Users className="h-4 w-4" />} label="Salary costs" value={fmtTZS(view.salary)} sub="Payments in range" tone="accent" />
-          <KPI icon={<FileText className="h-4 w-4" />} label="Active contracts" value={String(view.activeContracts)} sub="Signed &amp; running" tone="primary" />
+          {/* Optionally keep active contracts if you have space, but we already have 7; you can choose to keep or remove */}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2 mb-8">
