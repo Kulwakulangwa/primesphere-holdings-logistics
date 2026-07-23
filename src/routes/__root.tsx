@@ -124,12 +124,17 @@ function AuthGate({ children }: { children: ReactNode }) {
 // ========== ROOT COMPONENT ==========
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Don't show the sidebar on the auth page
+  const isAuthPage = pathname === "/auth";
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthGate>
         <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 overflow-auto">
+          {!isAuthPage && <Sidebar />}
+          <main className={isAuthPage ? "flex-1" : "flex-1 overflow-auto"}>
             <Outlet />
           </main>
         </div>
