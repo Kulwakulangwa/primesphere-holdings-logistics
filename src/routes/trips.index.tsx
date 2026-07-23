@@ -5,6 +5,7 @@ import { Search, MoreHorizontal, Eye, FileCheck, Pencil, CheckCircle2 } from "lu
 import { toast } from "sonner";
 
 import { NewTripDialog } from "@/components/fleet/NewTripDialog";
+import { NewLocalTripDialog } from "@/components/fleet/NewLocalTripDialog";
 import { StatusBadge } from "@/components/fleet/StatusBadge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,7 +75,10 @@ function TripsPage() {
           <h1 className="text-xl font-bold tracking-tight">Trips</h1>
           <p className="text-xs text-muted-foreground">Manage every trip from dispatch to audit and settlement.</p>
         </div>
-        <NewTripDialog />
+        <div className="flex gap-2">
+          <NewTripDialog />
+          <NewLocalTripDialog />
+        </div>
       </div>
 
       {/* Edit trip dialog (controlled) */}
@@ -112,6 +116,7 @@ function TripsPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Trip Code</th>
                   <th className="px-4 py-3 font-medium">Route</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Vehicle</th>
                   <th className="px-4 py-3 font-medium">Driver</th>
                   <th className="px-4 py-3 font-medium">Dispatch</th>
@@ -124,14 +129,23 @@ function TripsPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">No trips found.</td></tr>
+                  <tr><td colSpan={11} className="px-4 py-12 text-center text-muted-foreground">No trips found.</td></tr>
                 )}
                 {filtered.map((t) => {
                   const next = nextStatus(t.status);
+                  const isLocal = t.trip_type === "local";
                   return (
                     <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="px-4 py-3 font-mono text-xs">{t.trip_code}</td>
                       <td className="px-4 py-3">{t.origin_destination}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn(
+                          "inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium",
+                          isLocal ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        )}>
+                          {isLocal ? "Local" : "Border"}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs">{t.vehicle?.reg_number ?? "—"}</td>
                       <td className="px-4 py-3">{t.driver?.full_name ?? "—"}</td>
                       <td className="px-4 py-3 tabular text-xs">{t.dispatch_date ?? "—"}</td>
