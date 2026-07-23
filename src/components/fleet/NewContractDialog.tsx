@@ -51,6 +51,7 @@ export function NewContractDialog({ customerId }: { customerId: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customer", customerId] });
       qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["contracts"] });
       toast.success("Contract created");
       setOpen(false);
     },
@@ -123,7 +124,7 @@ export function NewContractDialog({ customerId }: { customerId: string }) {
             </div>
           </div>
 
-          {/* Local contract specific fields */}
+          {/* Local contract-specific fields */}
           {f.contract_type === "local" && (
             <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
