@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, Truck, User, Building2, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
-import { customersQuery, driversQuery, vehiclesQuery } from "@/lib/queries";
+import { customersQuery, driversQuery, vehiclesQuery, contractsQuery } from "@/lib/queries";
 import { fmtTZS } from "@/lib/format";
 import { NewDriverDialog } from "./NewDriverDialog";
 
@@ -32,15 +32,25 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
   const { data: vehicles } = useQuery({ ...vehiclesQuery, refetchOnMount: "always" });
   const { data: drivers } = useQuery({ ...driversQuery, refetchOnMount: "always" });
   const { data: customers } = useQuery({ ...customersQuery, refetchOnMount: "always" });
+  const { data: contracts } = useQuery({ ...contractsQuery, refetchOnMount: "always" });
 
   const [vehicleId, setVehicleId] = useState<string>("");
   const [driverId, setDriverId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string>("");
+  const [contractId, setContractId] = useState<string>("");
   const [route, setRoute] = useState("");
   const [plannedKm, setPlannedKm] = useState("");
   const [tripType, setTripType] = useState<"two_way" | "one_way">("two_way");
   const [quantity, setQuantity] = useState("");
   const [rate, setRate] = useState("");
+
+  // Filter contracts: only local contracts for the selected customer
+  const availableContracts = useMemo(() => {
+    if (!customerId) return [];
+    return (contracts ?? []).filter(
+      (c) => c.customer_id === customerId && c.contract_type === "local"
+    );
+  }, [contracts, customerId]);
 
   // Auto-calculate total TZS
   const totalTzs = useMemo(() => {
@@ -50,7 +60,6 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
     if (tripType === "two_way") {
       return km * r * qty;
     } else {
-      // one_way: rate per ton * quantity
       return r * qty;
     }
   }, [tripType, plannedKm, quantity, rate]);
@@ -58,7 +67,6 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
   const createTrip = useMutation({
     mutationFn: async () => {
       const code = `LOCAL-${Date.now().toString(36).toUpperCase().slice(-6)}`;
-      // Insert trip
       const { data: trip, error: e1 } = await supabase
         .from("trips")
         .insert({
@@ -67,6 +75,7 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
           vehicle_id: vehicleId || null,
           driver_id: driverId || null,
           customer_id: customerId || null,
+          contract_id: contractId || null, // now linked to the contract
           planned_km: Number(plannedKm) || 0,
           dispatch_date: new Date().toISOString().slice(0, 10),
           status: "Dispatched",
@@ -79,7 +88,6 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
         .single();
       if (e1) throw e1;
 
-      // Insert trip_financials (TZS)
       const { error: e2 } = await supabase
         .from("trip_financials")
         .insert({
@@ -163,7 +171,13 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
               <Label className="flex items-center gap-1.5">
                 <Building2 className="h-3.5 w-3.5" /> Customer
               </Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
+              <Select
+                value={customerId}
+                onValueChange={(v) => {
+                  setCustomerId(v);
+                  setContractId(""); // reset contract when customer changes
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
                 <SelectContent>
                   {customers?.map((c) => (
@@ -173,9 +187,43 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Route / Origin → Destination</Label>
-              <Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="e.g., Mbeya → Songea" />
+              <Label className="flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5" /> Local Contract
+              </Label>
+              <Select
+                value={contractId}
+                onValueChange={setContractId}
+                disabled={!customerId || availableContracts.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      !customerId
+                        ? "Select a customer first"
+                        : availableContracts.length === 0
+                        ? "No local contracts"
+                        : "Select contract"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableContracts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.route} · {c.start_date ? new Date(c.start_date).toLocaleDateString() : "No start"} –{" "}
+                      {c.end_date ? new Date(c.end_date).toLocaleDateString() : "No end"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Link to a master local contract (optional)
+              </p>
             </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Route / Origin → Destination</Label>
+            <Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="e.g., Mbeya → Songea" />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -217,7 +265,12 @@ export function NewLocalTripDialog({ trigger, onSuccess }: NewLocalTripDialogPro
               <Label>
                 {tripType === "two_way" ? "Rate per km (TZS)" : "Rate per ton (TZS)"}
               </Label>
-              <Input inputMode="numeric" value={rate} onChange={(e) => setRate(e.target.value)} />
+              <Input
+                inputMode="numeric"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                placeholder={tripType === "two_way" ? "e.g., 2.6" : "e.g., 94000"}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>Total contract (TZS)</Label>
