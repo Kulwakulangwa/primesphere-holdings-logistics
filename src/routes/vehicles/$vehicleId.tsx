@@ -11,11 +11,12 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Trash2
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { NewVehicleDialog } from "@/components/fleet/NewVehicleDialog"; // ← ADDED
+import { NewVehicleDialog } from "@/components/fleet/NewVehicleDialog";
 import { NewMaintenanceDialog } from "@/components/fleet/NewMaintenanceDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { fmtTZS } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { vehicleMaintenanceQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/vehicles/$vehicleId")({
   component: VehicleDetailPage,
@@ -54,22 +56,23 @@ function VehicleDetailPage() {
     },
   });
 
-  // Fetch maintenance records for this vehicle
-  const { data: maintenance = [], isLoading: maintenanceLoading } = useQuery({
-    queryKey: ["maintenance", "vehicle", vehicleId],
+  // Fetch trip count for this vehicle
+  const { data: tripCount = 0 } = useQuery({
+    queryKey: ["vehicle", vehicleId, "tripCount"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vehicle_maintenance")
-        .select(`
-          *,
-          vehicle:vehicles(reg_number, model)
-        `)
-        .eq("vehicle_id", vehicleId)
-        .order("maintenance_date", { ascending: false });
+      const { count, error } = await supabase
+        .from("trips")
+        .select("*", { count: "exact", head: true })
+        .eq("vehicle_id", vehicleId);
       if (error) throw error;
-      return data;
+      return count || 0;
     },
   });
+
+  // Fetch maintenance records for this vehicle
+  const { data: maintenance = [], isLoading: maintenanceLoading } = useQuery(
+    vehicleMaintenanceQuery(vehicleId)
+  );
 
   const deleteRecord = useMutation({
     mutationFn: async (id: string) => {
@@ -83,6 +86,9 @@ function VehicleDetailPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // --- State for editing maintenance record ---
+  const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
 
   const statusIcon = (status: string) => {
     switch (status) {
@@ -119,6 +125,15 @@ function VehicleDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Edit maintenance dialog (controlled) */}
+      {editingMaintenance && (
+        <NewMaintenanceDialog
+          initialData={editingMaintenance}
+          onSuccess={() => setEditingMaintenance(null)}
+          onClose={() => setEditingMaintenance(null)}
+        />
+      )}
+
       {/* Page header */}
       <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
@@ -142,19 +157,18 @@ function VehicleDetailPage() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <NewVehicleDialog initialData={vehicle} /> {/* ← EDIT BUTTON */}
+          <NewVehicleDialog initialData={vehicle} />
           <NewMaintenanceDialog />
         </div>
       </div>
 
-      {/* ... the rest of the page stays exactly the same ... */}
       <main className="mx-auto max-w-[1400px] px-4 md:px-6 py-6">
         {/* Quick stats */}
         <div className="grid gap-4 sm:grid-cols-3 mb-6">
           <div className="rounded-xl border bg-card p-4">
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Total Trips</div>
-            <div className="mt-1 text-2xl font-bold">—</div>
-            <div className="text-xs text-muted-foreground">Coming soon</div>
+            <div className="mt-1 text-2xl font-bold">{tripCount}</div>
+            <div className="text-xs text-muted-foreground">Trips assigned to this vehicle</div>
           </div>
           <div className="rounded-xl border bg-card p-4">
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Maintenance Records</div>
@@ -286,15 +300,27 @@ function VehicleDetailPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => deleteRecord.mutate(r.id)}
-                            disabled={deleteRecord.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={() => setEditingMaintenance(r)}
+                              aria-label="Edit maintenance"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => deleteRecord.mutate(r.id)}
+                              disabled={deleteRecord.isPending}
+                              aria-label="Delete maintenance"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
