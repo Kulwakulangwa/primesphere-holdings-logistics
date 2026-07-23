@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { NewTripDialog } from "@/components/fleet/NewTripDialog";
+import { NewLocalTripDialog } from "@/components/fleet/NewLocalTripDialog";
 import { StatusBadge } from "@/components/fleet/StatusBadge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { tripsQuery } from "@/lib/queries";
@@ -63,7 +64,10 @@ function DashboardPage() {
           <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-xs text-muted-foreground">Real-time fleet overview</p>
         </div>
-        <NewTripDialog />   {/* ← Direct usage – the dialog has its own trigger button */}
+        <div className="flex gap-2">
+          <NewTripDialog />
+          <NewLocalTripDialog />
+        </div>
       </div>
 
       {/* Metrics */}
@@ -200,7 +204,7 @@ function DashboardPage() {
   );
 }
 
-// MetricCard component (fully defined)
+// MetricCard component
 function MetricCard({
   icon,
   label,
