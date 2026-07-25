@@ -553,7 +553,7 @@ export const invoiceDetailQuery = (invoiceId: string) =>
     },
   });
 
-// ===== FINANCE OVERVIEW (direct query version) =====
+// ===== FINANCE OVERVIEW =====
 export const financeOverviewQuery = queryOptions({
   queryKey: ["finance", "overview"],
   queryFn: async () => {
