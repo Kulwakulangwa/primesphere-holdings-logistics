@@ -8,7 +8,7 @@ import { NewMaintenanceDialog } from "@/components/fleet/NewMaintenanceDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { maintenanceQuery } from "@/lib/queries"; // <-- uses central query with technician
+import { maintenanceQuery } from "@/lib/queries";
 import { fmtTZS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +25,8 @@ export const Route = createFileRoute("/maintenance/")({
 
 function MaintenancePage() {
   const qc = useQueryClient();
-  const { data: records = [], isLoading } = useQuery(maintenanceQuery());
+  // Fixed: useQuery(maintenanceQuery) NOT maintenanceQuery()
+  const { data: records = [], isLoading } = useQuery(maintenanceQuery);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -69,7 +70,6 @@ function MaintenancePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Page header */}
       <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
