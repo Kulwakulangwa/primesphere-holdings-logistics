@@ -1,11 +1,25 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Phone, Mail, MapPin, Wrench, DollarSign, Banknote } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { ArrowLeft, Phone, Mail, MapPin, Wrench, DollarSign, Banknote, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { technicianDetailQuery } from "@/lib/queries";
 import { fmtTZS } from "@/lib/format";
 import { StatusBadge } from "@/components/fleet/StatusBadge";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/technicians/$technicianId")({
   component: TechnicianDetailPage,
@@ -20,7 +34,40 @@ export const Route = createFileRoute("/technicians/$technicianId")({
 function TechnicianDetailPage() {
   const { technicianId } = Route.useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery(technicianDetailQuery(technicianId));
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const recordPayment = useMutation({
+    mutationFn: async ({ recordId, amount }: { recordId: string; amount: number }) => {
+      if (amount <= 0) throw new Error("Enter a valid amount");
+      // Get current paid amount
+      const { data: record, error: fetchError } = await supabase
+        .from("vehicle_maintenance")
+        .select("paid_amount, cost_tzs")
+        .eq("id", recordId)
+        .single();
+      if (fetchError) throw fetchError;
+      const newPaid = (record.paid_amount || 0) + amount;
+      if (newPaid > record.cost_tzs) throw new Error("Payment exceeds total cost");
+      const { error: updateError } = await supabase
+        .from("vehicle_maintenance")
+        .update({ paid_amount: newPaid })
+        .eq("id", recordId);
+      if (updateError) throw updateError;
+      // Optionally log audit
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["technician", technicianId] });
+      qc.invalidateQueries({ queryKey: ["maintenance"] });
+      toast.success("Payment recorded");
+      setSelectedRecordId(null);
+      setPaymentAmount("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (isLoading) {
     return (
@@ -132,12 +179,13 @@ function TechnicianDetailPage() {
                   <th className="px-4 py-2 font-medium text-right">Paid</th>
                   <th className="px-4 py-2 font-medium text-right">Balance</th>
                   <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2 font-medium text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {maintenance.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                       No maintenance records for this technician.
                     </td>
                   </tr>
@@ -166,6 +214,60 @@ function TechnicianDetailPage() {
                         {fmtTZS(bal)}
                       </td>
                       <td className="px-4 py-2"><StatusBadge status={m.status} /></td>
+                      <td className="px-4 py-2 text-right">
+                        {bal > 0 && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="gap-1">
+                                <Plus className="h-3 w-3" /> Pay
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Record payment</DialogTitle>
+                                <DialogDescription>
+                                  Enter the amount paid for this maintenance job.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-2">
+                                <div className="grid gap-1.5">
+                                  <Label>Amount (TZS)</Label>
+                                  <Input
+                                    inputMode="decimal"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    placeholder="0"
+                                  />
+                                </div>
+                                <div className="grid gap-1.5">
+                                  <Label>Payment date</Label>
+                                  <Input
+                                    type="date"
+                                    value={paymentDate}
+                                    onChange={(e) => setPaymentDate(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="ghost" onClick={() => { setPaymentAmount(""); setSelectedRecordId(null); }}>Cancel</Button>
+                                <Button
+                                  onClick={() => {
+                                    const amount = Number(paymentAmount);
+                                    if (!amount || amount <= 0) {
+                                      toast.error("Enter a valid amount");
+                                      return;
+                                    }
+                                    recordPayment.mutate({ recordId: m.id, amount });
+                                  }}
+                                  disabled={recordPayment.isPending}
+                                >
+                                  {recordPayment.isPending ? "Recording..." : "Record payment"}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
