@@ -19,7 +19,7 @@ export type Driver = {
   monthly_salary_tzs: number;
   base_location: string | null;
   created_at?: string;
-  driver_type: string; // 'border' | 'local' | 'both'
+  driver_type: string;
 };
 
 export type DriverPayment = {
@@ -209,8 +209,11 @@ export type VehicleMaintenance = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
-  trip_type: string; // 'border' | 'local' | 'both'
+  trip_type: string;
+  technician_id: string | null;
+  paid_amount: number;
   vehicle?: { reg_number: string; model: string } | null;
+  technician?: { id: string; name: string; phone: string | null } | null;
 };
 
 // ========== QUERIES ==========
@@ -540,7 +543,7 @@ export const invoiceDetailQuery = (invoiceId: string) =>
     },
   });
 
-// ===== UPDATED FINANCE OVERVIEW =====
+// ===== FINANCE OVERVIEW (direct query version) =====
 export const financeOverviewQuery = queryOptions({
   queryKey: ["finance", "overview"],
   queryFn: async () => {
@@ -559,10 +562,10 @@ export const financeOverviewQuery = queryOptions({
       supabase.from("driver_payments").select("*"),
       supabase.from("drivers").select("*"),
       supabase.from("contracts").select("*"),
-      supabase.from("vehicle_maintenance").select("*"), // now includes trip_type
+      supabase.from("vehicle_maintenance").select("*"),
     ]);
 
-    // Separate border and local trips
+    // Separate border/local trips
     const borderTrips = (trips ?? []).filter((t) => t.trip_type !== "local");
     const localTrips = (trips ?? []).filter((t) => t.trip_type === "local");
 
@@ -575,22 +578,22 @@ export const financeOverviewQuery = queryOptions({
     const borderExps = (exps ?? []).filter((e) => borderTripIds.has(e.trip_id));
     const localExps = (exps ?? []).filter((e) => localTripIds.has(e.trip_id));
 
-    // Border Revenue (USD + TZS)
+    // Border metrics
     const borderRevenueUsd = borderFins.reduce((s, f) => s + Number(f.contract_amount), 0);
-    const borderRevenueTzs = borderFins.reduce((s, f) => s + Number(f.total_contract_tzs ?? Number(f.contract_amount) * Number(f.fx_exchange_rate)), 0);
+    const borderRevenueTzs = borderFins.reduce((s, f) => s + Number(f.total_contract_tzs || 0), 0);
     const borderExpensesTzs = borderExps.filter((e) => e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
     const borderProfitTzs = borderRevenueTzs - borderExpensesTzs;
     const borderOutstandingAdv = borderFins.reduce((s, f) => s + Number(f.advance_paid_tzs), 0) -
       borderExps.filter((e) => e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
 
-    // Local Revenue (TZS only)
-    const localRevenueTzs = localFins.reduce((s, f) => s + Number(f.total_contract_tzs ?? Number(f.contract_amount) * Number(f.fx_exchange_rate)), 0);
+    // Local metrics
+    const localRevenueTzs = localFins.reduce((s, f) => s + Number(f.total_contract_tzs || 0), 0);
     const localExpensesTzs = localExps.filter((e) => e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
     const localProfitTzs = localRevenueTzs - localExpensesTzs;
     const localOutstandingAdv = localFins.reduce((s, f) => s + Number(f.advance_paid_tzs), 0) -
       localExps.filter((e) => e.status === "Verified").reduce((s, e) => s + Number(e.amount_tzs), 0);
 
-    // Driver Salary – split by driver_type
+    // Salary split by driver_type
     const driverTypeMap = new Map((drivers ?? []).map((d) => [d.id, d.driver_type || "both"]));
     const borderDrivers = (drivers ?? []).filter((d) => driverTypeMap.get(d.id) === "border" || driverTypeMap.get(d.id) === "both");
     const localDrivers = (drivers ?? []).filter((d) => driverTypeMap.get(d.id) === "local" || driverTypeMap.get(d.id) === "both");
@@ -603,7 +606,7 @@ export const financeOverviewQuery = queryOptions({
       .filter((p) => p.payment_type === "Salary" && localDrivers.some((d) => d.id === p.driver_id))
       .reduce((s, p) => s + Number(p.amount_tzs), 0);
 
-    // Maintenance – split by trip_type
+    // Maintenance split
     const borderMaintenance = (maintenance ?? [])
       .filter((m) => m.status === "Completed" && (m.trip_type === "border" || m.trip_type === "both"))
       .reduce((s, m) => s + Number(m.cost_tzs), 0);
@@ -644,8 +647,14 @@ export const financeOverviewQuery = queryOptions({
         netProfit: localNetProfit,
       },
       activeContracts,
-      totalInvoiced: 0, // can be added separately
+      totalInvoiced: 0,
       totalPaid: 0,
+      drivers: drivers ?? [],
+      financials: fins ?? [],
+      expenses: exps ?? [],
+      payments: pays ?? [],
+      contracts: contracts ?? [],
+      maintenanceCost: borderMaintenance + localMaintenance,
     };
   },
 });
@@ -662,7 +671,7 @@ export const contractsQuery = queryOptions({
   },
 });
 
-// ========== MAINTENANCE QUERIES ==========
+// ========== MAINTENANCE QUERIES (updated with technician) ==========
 export const maintenanceQuery = queryOptions({
   queryKey: ["maintenance"],
   queryFn: async () => {
@@ -670,11 +679,15 @@ export const maintenanceQuery = queryOptions({
       .from("vehicle_maintenance")
       .select(`
         *,
-        vehicle:vehicles(reg_number, model)
+        vehicle:vehicles(reg_number, model),
+        technician:technicians(id, name, phone)
       `)
       .order("maintenance_date", { ascending: false });
     if (error) throw error;
-    return data as (VehicleMaintenance & { vehicle: { reg_number: string; model: string } | null })[];
+    return data as (VehicleMaintenance & {
+      vehicle: { reg_number: string; model: string } | null;
+      technician: { id: string; name: string; phone: string | null } | null;
+    })[];
   },
 });
 
@@ -686,11 +699,15 @@ export const vehicleMaintenanceQuery = (vehicleId: string) =>
         .from("vehicle_maintenance")
         .select(`
           *,
-          vehicle:vehicles(reg_number, model)
+          vehicle:vehicles(reg_number, model),
+          technician:technicians(id, name, phone)
         `)
         .eq("vehicle_id", vehicleId)
         .order("maintenance_date", { ascending: false });
       if (error) throw error;
-      return data as (VehicleMaintenance & { vehicle: { reg_number: string; model: string } | null })[];
+      return data as (VehicleMaintenance & {
+        vehicle: { reg_number: string; model: string } | null;
+        technician: { id: string; name: string; phone: string | null } | null;
+      })[];
     },
   });
