@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
@@ -17,12 +17,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { vehiclesQuery } from "@/lib/queries";
+import { vehiclesQuery, techniciansQuery } from "@/lib/queries";
+import { fmtTZS } from "@/lib/format";
 
 const STATUSES = ["Planned", "In-Progress", "Completed"];
 
 type NewMaintenanceDialogProps = {
-  initialData?: any; // optional for edit
+  initialData?: any;
   trigger?: React.ReactNode;
   onSuccess?: () => void;
 };
@@ -31,6 +32,7 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const { data: vehicles = [] } = useQuery(vehiclesQuery);
+  const { data: technicians = [] } = useQuery(techniciansQuery);
 
   const [vehicleId, setVehicleId] = useState<string>("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -39,6 +41,14 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
   const [duration, setDuration] = useState("");
   const [status, setStatus] = useState("Planned");
   const [tripType, setTripType] = useState<"border" | "local" | "both">("both");
+  const [technicianId, setTechnicianId] = useState<string>("");
+  const [paidAmount, setPaidAmount] = useState("");
+
+  const balance = useMemo(() => {
+    const total = Number(cost) || 0;
+    const paid = Number(paidAmount) || 0;
+    return total - paid;
+  }, [cost, paidAmount]);
 
   useEffect(() => {
     if (initialData) {
@@ -49,6 +59,8 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
       setDuration(initialData.duration_hours ? String(initialData.duration_hours) : "");
       setStatus(initialData.status);
       setTripType((initialData.trip_type as "border" | "local" | "both") || "both");
+      setTechnicianId(initialData.technician_id || "");
+      setPaidAmount(String(initialData.paid_amount || 0));
       setOpen(true);
     }
   }, [initialData]);
@@ -62,6 +74,8 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
       setDuration("");
       setStatus("Planned");
       setTripType("both");
+      setTechnicianId("");
+      setPaidAmount("");
     }
   };
 
@@ -76,6 +90,8 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
         status,
         completed_at: status === "Completed" ? new Date().toISOString() : null,
         trip_type: tripType,
+        technician_id: technicianId || null,
+        paid_amount: Number(paidAmount || 0),
       };
       if (initialData?.id) {
         const { error } = await supabase
@@ -94,6 +110,7 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
       qc.invalidateQueries({ queryKey: ["maintenance"] });
       qc.invalidateQueries({ queryKey: ["vehicles"] });
       qc.invalidateQueries({ queryKey: ["finance", "overview"] });
+      qc.invalidateQueries({ queryKey: ["technicians"] });
       if (initialData?.vehicle_id) {
         qc.invalidateQueries({ queryKey: ["maintenance", "vehicle", initialData.vehicle_id] });
       }
@@ -163,7 +180,7 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label>Cost (TZS)</Label>
               <Input
@@ -194,7 +211,40 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
             </Select>
           </div>
 
-          {/* NEW: Trip Type field */}
+          {/* Technician */}
+          <div className="grid gap-1.5">
+            <Label>Technician</Label>
+            <Select value={technicianId} onValueChange={setTechnicianId}>
+              <SelectTrigger><SelectValue placeholder="Select technician" /></SelectTrigger>
+              <SelectContent>
+                {technicians.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">Optional – assign a mechanic</p>
+          </div>
+
+          {/* Paid amount & balance */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label>Amount paid (TZS)</Label>
+              <Input
+                inputMode="decimal"
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Balance (TZS)</Label>
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-sm font-semibold tabular">
+                {fmtTZS(balance)}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Cost – Paid</p>
+            </div>
+          </div>
+
           <div className="grid gap-1.5">
             <Label>Trip type</Label>
             <Select value={tripType} onValueChange={(v) => setTripType(v as "border" | "local" | "both")}>
