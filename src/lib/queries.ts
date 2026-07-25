@@ -462,6 +462,16 @@ export const customersOverviewQuery = queryOptions({
   },
 });
 
+// ===== TECHNICIANS QUERY =====
+export const techniciansQuery = queryOptions({
+  queryKey: ["technicians"],
+  queryFn: async () => {
+    const { data, error } = await supabase.from("technicians").select("*").order("name");
+    if (error) throw error;
+    return data as { id: string; name: string; phone: string | null; email: string | null; address: string | null }[];
+  },
+});
+
 export const customerDetailQuery = (customerId: string) =>
   queryOptions({
     queryKey: ["customer", customerId],
@@ -671,7 +681,7 @@ export const contractsQuery = queryOptions({
   },
 });
 
-// ========== MAINTENANCE QUERIES (updated with technician) ==========
+// ========== MAINTENANCE QUERIES ==========
 export const maintenanceQuery = queryOptions({
   queryKey: ["maintenance"],
   queryFn: async () => {
