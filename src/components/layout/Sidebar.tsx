@@ -15,7 +15,7 @@ import {
   X,
   Wrench,
   User,
-  FileText, // <-- ADDED
+  FileText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,9 +29,10 @@ const navItems = [
   { to: "/drivers", label: "Drivers", icon: Users },
   { to: "/expenses", label: "Expenses", icon: Receipt },
   { to: "/customers", label: "Customers", icon: Building2 },
+  { to: "/technicians", label: "Technicians", icon: User }, // <-- ADDED
   { to: "/finance", label: "Finance", icon: LineChart },
   { to: "/maintenance", label: "Maintenance", icon: Wrench },
-  { to: "/invoices", label: "Invoices", icon: FileText }, // <-- ADDED
+  { to: "/invoices", label: "Invoices", icon: FileText },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/voucher", label: "Voucher", icon: Smartphone },
 ];
