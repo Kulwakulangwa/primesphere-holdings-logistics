@@ -685,19 +685,40 @@ export const contractsQuery = queryOptions({
 export const maintenanceQuery = queryOptions({
   queryKey: ["maintenance"],
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from("vehicle_maintenance")
-      .select(`
-        *,
-        vehicle:vehicles(reg_number, model),
-        technician:technicians(id, name, phone)
-      `)
-      .order("maintenance_date", { ascending: false });
-    if (error) throw error;
-    return data as (VehicleMaintenance & {
-      vehicle: { reg_number: string; model: string } | null;
-      technician: { id: string; name: string; phone: string | null } | null;
-    })[];
+    try {
+      // Try to fetch with technician relation
+      const { data, error } = await supabase
+        .from("vehicle_maintenance")
+        .select(`
+          *,
+          vehicle:vehicles(reg_number, model),
+          technician:technicians(id, name, phone)
+        `)
+        .order("maintenance_date", { ascending: false });
+      if (error) {
+        console.warn("Technicians table not found, falling back to basic query:", error.message);
+        // Fallback: fetch without technician
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("vehicle_maintenance")
+          .select(`
+            *,
+            vehicle:vehicles(reg_number, model)
+          `)
+          .order("maintenance_date", { ascending: false });
+        if (fallbackError) throw fallbackError;
+        return fallbackData as (VehicleMaintenance & {
+          vehicle: { reg_number: string; model: string } | null;
+          technician: null;
+        })[];
+      }
+      return data as (VehicleMaintenance & {
+        vehicle: { reg_number: string; model: string } | null;
+        technician: { id: string; name: string; phone: string | null } | null;
+      })[];
+    } catch (error) {
+      console.error("Error in maintenanceQuery:", error);
+      throw error;
+    }
   },
 });
 
@@ -714,7 +735,22 @@ export const vehicleMaintenanceQuery = (vehicleId: string) =>
         `)
         .eq("vehicle_id", vehicleId)
         .order("maintenance_date", { ascending: false });
-      if (error) throw error;
+      if (error) {
+        // Fallback without technician
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("vehicle_maintenance")
+          .select(`
+            *,
+            vehicle:vehicles(reg_number, model)
+          `)
+          .eq("vehicle_id", vehicleId)
+          .order("maintenance_date", { ascending: false });
+        if (fallbackError) throw fallbackError;
+        return fallbackData as (VehicleMaintenance & {
+          vehicle: { reg_number: string; model: string } | null;
+          technician: null;
+        })[];
+      }
       return data as (VehicleMaintenance & {
         vehicle: { reg_number: string; model: string } | null;
         technician: { id: string; name: string; phone: string | null } | null;
