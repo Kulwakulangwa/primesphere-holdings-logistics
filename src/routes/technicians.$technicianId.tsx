@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Phone, Mail, MapPin, Wrench } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Wrench, DollarSign, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { technicianDetailQuery } from "@/lib/queries";
 import { fmtTZS } from "@/lib/format";
 import { StatusBadge } from "@/components/fleet/StatusBadge";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/technicians/$technicianId")({
   component: TechnicianDetailPage,
