@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Trash2, Pencil, User } from "lucide-react";
+import { Search, Trash2, Pencil, User, Eye } from "lucide-react";
 import { toast } from "sonner";
 
 import { NewTechnicianDialog } from "@/components/fleet/NewTechnicianDialog";
@@ -114,7 +114,7 @@ function TechniciansPage() {
                   <th className="px-4 py-3 font-medium text-right">Total Work</th>
                   <th className="px-4 py-3 font-medium text-right">Paid</th>
                   <th className="px-4 py-3 font-medium text-right">Balance</th>
-                  <th className="w-16" />
+                  <th className="w-24" />
                 </tr>
               </thead>
               <tbody>
@@ -129,7 +129,15 @@ function TechniciansPage() {
                   const balance = stats.totalCost - stats.totalPaid;
                   return (
                     <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">{t.name}</td>
+                      <td className="px-4 py-3 font-medium">
+                        <Link
+                          to="/technicians/$technicianId"
+                          params={{ technicianId: t.id }}
+                          className="hover:underline hover:text-primary transition"
+                        >
+                          {t.name}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3">{t.phone || "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground">{t.email || "—"}</td>
                       <td className="px-4 py-3 text-right">{fmtTZS(stats.totalCost)}</td>
@@ -139,6 +147,14 @@ function TechniciansPage() {
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex items-center gap-1">
+                          <Link
+                            to="/technicians/$technicianId"
+                            params={{ technicianId: t.id }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            aria-label="View technician"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Link>
                           <NewTechnicianDialog initialData={t} trigger={<Button variant="ghost" size="icon" className="h-8 w-8"><Pencil className="h-4 w-4" /></Button>} />
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deleteTechnician.mutate(t.id)}>
                             <Trash2 className="h-4 w-4" />
