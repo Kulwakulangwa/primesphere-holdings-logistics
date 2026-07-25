@@ -472,6 +472,43 @@ export const techniciansQuery = queryOptions({
   },
 });
 
+// ===== TECHNICIAN DETAIL QUERY =====
+export const technicianDetailQuery = (technicianId: string) =>
+  queryOptions({
+    queryKey: ["technician", technicianId],
+    queryFn: async () => {
+      const { data: technician, error: tErr } = await supabase
+        .from("technicians")
+        .select("*")
+        .eq("id", technicianId)
+        .maybeSingle();
+      if (tErr) throw tErr;
+      if (!technician) return null;
+
+      const { data: maintenance, error: mErr } = await supabase
+        .from("vehicle_maintenance")
+        .select(`
+          *,
+          vehicle:vehicles(reg_number, model)
+        `)
+        .eq("technician_id", technicianId)
+        .order("maintenance_date", { ascending: false });
+      if (mErr) throw mErr;
+
+      const totalCost = maintenance.reduce((sum, m) => sum + Number(m.cost_tzs), 0);
+      const totalPaid = maintenance.reduce((sum, m) => sum + Number(m.paid_amount || 0), 0);
+      const balance = totalCost - totalPaid;
+
+      return {
+        technician,
+        maintenance,
+        totalCost,
+        totalPaid,
+        balance,
+      };
+    },
+  });
+
 export const customerDetailQuery = (customerId: string) =>
   queryOptions({
     queryKey: ["customer", customerId],
@@ -686,7 +723,6 @@ export const maintenanceQuery = queryOptions({
   queryKey: ["maintenance"],
   queryFn: async () => {
     try {
-      // Try to fetch with technician relation
       const { data, error } = await supabase
         .from("vehicle_maintenance")
         .select(`
@@ -697,7 +733,6 @@ export const maintenanceQuery = queryOptions({
         .order("maintenance_date", { ascending: false });
       if (error) {
         console.warn("Technicians table not found, falling back to basic query:", error.message);
-        // Fallback: fetch without technician
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("vehicle_maintenance")
           .select(`
@@ -736,7 +771,6 @@ export const vehicleMaintenanceQuery = (vehicleId: string) =>
         .eq("vehicle_id", vehicleId)
         .order("maintenance_date", { ascending: false });
       if (error) {
-        // Fallback without technician
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("vehicle_maintenance")
           .select(`
