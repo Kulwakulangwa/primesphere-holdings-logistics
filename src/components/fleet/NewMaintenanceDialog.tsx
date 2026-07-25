@@ -50,6 +50,8 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
     return total - paid;
   }, [cost, paidAmount]);
 
+  // Pre-fill form when initialData is provided (edit mode)
+  // BUT do NOT open the dialog – the trigger will handle that
   useEffect(() => {
     if (initialData) {
       setVehicleId(initialData.vehicle_id);
@@ -61,7 +63,7 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
       setTripType((initialData.trip_type as "border" | "local" | "both") || "both");
       setTechnicianId(initialData.technician_id || "");
       setPaidAmount(String(initialData.paid_amount || 0));
-      setOpen(true);
+      // IMPORTANT: DO NOT setOpen(true) here – it causes automatic popups
     }
   }, [initialData]);
 
@@ -122,9 +124,11 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleOpenChange = (open: boolean) => {
-    setOpen(open);
-    if (!open && !initialData) resetForm();
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen && !initialData) {
+      resetForm();
+    }
   };
 
   const defaultTrigger = initialData ? (
@@ -211,7 +215,6 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
             </Select>
           </div>
 
-          {/* Technician */}
           <div className="grid gap-1.5">
             <Label>Technician</Label>
             <Select value={technicianId} onValueChange={setTechnicianId}>
@@ -225,7 +228,6 @@ export function NewMaintenanceDialog({ initialData, trigger, onSuccess }: NewMai
             <p className="text-[11px] text-muted-foreground">Optional – assign a mechanic</p>
           </div>
 
-          {/* Paid amount & balance */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-1.5">
               <Label>Amount paid (TZS)</Label>
