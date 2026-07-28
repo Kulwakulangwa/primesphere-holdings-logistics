@@ -145,10 +145,10 @@ function VoucherPage() {
             <Label className="flex items-center gap-1.5">
               <Camera className="h-3.5 w-3.5" /> Snap receipt photo
             </Label>
+            {/* Remove capture="environment" to allow gallery selection */}
             <Input
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
             {file && <div className="text-xs text-muted-foreground">✓ {file.name}</div>}
