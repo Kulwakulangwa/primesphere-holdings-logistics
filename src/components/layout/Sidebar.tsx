@@ -28,8 +28,9 @@ const navItems = [
   { to: "/vehicles", label: "Vehicles", icon: Wrench },
   { to: "/drivers", label: "Drivers", icon: Users },
   { to: "/expenses", label: "Expenses", icon: Receipt },
+  { to: "/operational-expenses", label: "Operational Expenses", icon: Receipt }, // <-- ADDED
   { to: "/customers", label: "Customers", icon: Building2 },
-  { to: "/technicians", label: "Technicians", icon: User }, // <-- ADDED
+  { to: "/technicians", label: "Technicians", icon: User },
   { to: "/finance", label: "Finance", icon: LineChart },
   { to: "/maintenance", label: "Maintenance", icon: Wrench },
   { to: "/invoices", label: "Invoices", icon: FileText },
