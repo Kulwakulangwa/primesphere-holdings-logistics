@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Download, DollarSign, TrendingDown, TrendingUp, Wallet, Users, FileText, Wrench, Truck } from "lucide-react";
+import { Download, DollarSign, TrendingDown, TrendingUp, Wallet, Users, FileText, Wrench, Truck, Receipt } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,12 @@ function FinancePage() {
         .eq("status", "Completed");
       if (mErr) throw mErr;
 
+      // ---- NEW: fetch operational expenses ----
+      const { data: opExps, error: oErr } = await supabase
+        .from("operational_expenses")
+        .select("*");
+      if (oErr) throw oErr;
+
       const borderTrips = trips.filter(t => t.trip_type === 'border');
       const localTrips = trips.filter(t => t.trip_type === 'local');
 
@@ -74,17 +80,29 @@ function FinancePage() {
       const borderExps = exps.filter(e => borderIds.has(e.trip_id));
       const localExps = exps.filter(e => localIds.has(e.trip_id));
 
+      // Operational expenses split
+      const borderOpExp = (opExps ?? [])
+        .filter(e => e.expense_type === 'border' || e.expense_type === 'both')
+        .reduce((s, e) => s + Number(e.amount_tzs), 0);
+      const localOpExp = (opExps ?? [])
+        .filter(e => e.expense_type === 'local' || e.expense_type === 'both')
+        .reduce((s, e) => s + Number(e.amount_tzs), 0);
+      const totalOpExp = borderOpExp + localOpExp; // Note: both counted in both, but we sum only once here
+
+      // Border metrics
       const borderRevenueUsd = borderFins.reduce((s, f) => s + Number(f.contract_amount), 0);
       const borderRevenueTzs = borderFins.reduce((s, f) => s + Number(f.total_contract_tzs || 0), 0);
       const borderExpensesTzs = borderExps.reduce((s, e) => s + Number(e.amount_tzs), 0);
       const borderProfitTzs = borderRevenueTzs - borderExpensesTzs;
       const borderOutstandingAdv = borderFins.reduce((s, f) => s + Number(f.advance_paid_tzs), 0) - borderExpensesTzs;
 
+      // Local metrics
       const localRevenueTzs = localFins.reduce((s, f) => s + Number(f.total_contract_tzs || 0), 0);
       const localExpensesTzs = localExps.reduce((s, e) => s + Number(e.amount_tzs), 0);
       const localProfitTzs = localRevenueTzs - localExpensesTzs;
       const localOutstandingAdv = localFins.reduce((s, f) => s + Number(f.advance_paid_tzs), 0) - localExpensesTzs;
 
+      // Salary split by driver_type
       const driverTypeMap = new Map(drivers.map(d => [d.id, d.driver_type || 'both']));
       const borderDrivers = drivers.filter(d => driverTypeMap.get(d.id) === 'border' || driverTypeMap.get(d.id) === 'both');
       const localDrivers = drivers.filter(d => driverTypeMap.get(d.id) === 'local' || driverTypeMap.get(d.id) === 'both');
@@ -96,6 +114,7 @@ function FinancePage() {
         .filter(p => p.payment_type === 'Salary' && localDrivers.some(d => d.id === p.driver_id))
         .reduce((s, p) => s + Number(p.amount_tzs), 0);
 
+      // Maintenance split
       const borderMaintenance = maintenance
         .filter(m => m.trip_type === 'border' || m.trip_type === 'both')
         .reduce((s, m) => s + Number(m.cost_tzs), 0);
@@ -103,8 +122,9 @@ function FinancePage() {
         .filter(m => m.trip_type === 'local' || m.trip_type === 'both')
         .reduce((s, m) => s + Number(m.cost_tzs), 0);
 
-      const borderNetProfit = borderProfitTzs - borderSalary - borderMaintenance;
-      const localNetProfit = localProfitTzs - localSalary - localMaintenance;
+      // Net profits including operational expenses
+      const borderNetProfit = borderProfitTzs - borderSalary - borderMaintenance - borderOpExp;
+      const localNetProfit = localProfitTzs - localSalary - localMaintenance - localOpExp;
 
       const totalSalary = borderSalary + localSalary;
       const totalMaintenance = borderMaintenance + localMaintenance;
@@ -127,6 +147,7 @@ function FinancePage() {
           outstandingAdv: borderOutstandingAdv,
           salary: borderSalary,
           maintenance: borderMaintenance,
+          operationalExpenses: borderOpExp,
           netProfit: borderNetProfit,
         },
         local: {
@@ -139,10 +160,12 @@ function FinancePage() {
           outstandingAdv: localOutstandingAdv,
           salary: localSalary,
           maintenance: localMaintenance,
+          operationalExpenses: localOpExp,
           netProfit: localNetProfit,
         },
         totalSalary,
         totalMaintenance,
+        totalOperationalExpenses: totalOpExp,
         totalNetProfit,
         activeContracts: activeContracts || 0,
         allTrips: trips,
@@ -181,6 +204,7 @@ function FinancePage() {
     const borderExps = data.allExps.filter(e => borderIds.has(e.trip_id));
     const localExps = data.allExps.filter(e => localIds.has(e.trip_id));
 
+    // Recalculate with filtered trips
     const borderRevenueUsd = borderFins.reduce((s, f) => s + Number(f.contract_amount), 0);
     const borderRevenueTzs = borderFins.reduce((s, f) => s + Number(f.total_contract_tzs || 0), 0);
     const borderExpensesTzs = borderExps.reduce((s, e) => s + Number(e.amount_tzs), 0);
@@ -192,9 +216,9 @@ function FinancePage() {
     const localProfitTzs = localRevenueTzs - localExpensesTzs;
     const localOutstandingAdv = localFins.reduce((s, f) => s + Number(f.advance_paid_tzs), 0) - localExpensesTzs;
 
-    // Recalculate net profits with filtered numbers
-    const borderNetProfit = borderProfitTzs - data.border.salary - data.border.maintenance;
-    const localNetProfit = localProfitTzs - data.local.salary - data.local.maintenance;
+    // Use precomputed salary/maintenance/opExp from data (they are not date-filtered, but we keep them)
+    const borderNetProfit = borderProfitTzs - data.border.salary - data.border.maintenance - data.border.operationalExpenses;
+    const localNetProfit = localProfitTzs - data.local.salary - data.local.maintenance - data.local.operationalExpenses;
 
     return {
       border: {
@@ -208,6 +232,7 @@ function FinancePage() {
         outstandingAdv: borderOutstandingAdv,
         salary: data.border.salary,
         maintenance: data.border.maintenance,
+        operationalExpenses: data.border.operationalExpenses,
         netProfit: borderNetProfit,
       },
       local: {
@@ -220,6 +245,7 @@ function FinancePage() {
         outstandingAdv: localOutstandingAdv,
         salary: data.local.salary,
         maintenance: data.local.maintenance,
+        operationalExpenses: data.local.operationalExpenses,
         netProfit: localNetProfit,
       },
     };
@@ -333,9 +359,10 @@ function FinancePage() {
             <h2 className="text-lg font-semibold tracking-tight">Border Operations</h2>
             <span className="text-xs text-muted-foreground">Cross‑border freight (USD/TZS)</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
             <KPI icon={<DollarSign className="h-4 w-4" />} label="Revenue" value={fmtUSD(view.border.revenueUsd)} sub={fmtTZS(view.border.revenueTzs)} tone="primary" />
-            <KPI icon={<TrendingDown className="h-4 w-4" />} label="Expenses" value={fmtTZS(view.border.expensesTzs)} sub={asUsd(view.border.expensesTzs)} tone="warning" />
+            <KPI icon={<TrendingDown className="h-4 w-4" />} label="Trip Expenses" value={fmtTZS(view.border.expensesTzs)} sub={asUsd(view.border.expensesTzs)} tone="warning" />
+            <KPI icon={<Receipt className="h-4 w-4" />} label="Operational Expenses" value={fmtTZS(view.border.operationalExpenses)} sub={asUsd(view.border.operationalExpenses)} tone="accent" />
             <KPI icon={<TrendingUp className="h-4 w-4" />} label="Profit" value={fmtTZS(view.border.profitTzs)} sub={asUsd(view.border.profitTzs)} tone={view.border.profitTzs >= 0 ? "success" : "destructive"} />
             <KPI icon={<Users className="h-4 w-4" />} label="Salary" value={fmtTZS(view.border.salary)} sub={asUsd(view.border.salary)} tone="accent" />
             <KPI icon={<Wrench className="h-4 w-4" />} label="Maintenance" value={fmtTZS(view.border.maintenance)} sub={asUsd(view.border.maintenance)} tone="accent" />
@@ -351,21 +378,23 @@ function FinancePage() {
             <h2 className="text-lg font-semibold tracking-tight">Local Operations</h2>
             <span className="text-xs text-muted-foreground">Domestic routes (TZS)</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8">
             <KPI icon={<DollarSign className="h-4 w-4" />} label="Revenue" value={fmtTZS(view.local.revenueTzs)} sub="Local trips" tone="primary" />
-            <KPI icon={<TrendingDown className="h-4 w-4" />} label="Expenses" value={fmtTZS(view.local.expensesTzs)} sub="Verified" tone="warning" />
+            <KPI icon={<TrendingDown className="h-4 w-4" />} label="Trip Expenses" value={fmtTZS(view.local.expensesTzs)} sub="Verified" tone="warning" />
+            <KPI icon={<Receipt className="h-4 w-4" />} label="Operational Expenses" value={fmtTZS(view.local.operationalExpenses)} sub="Operational costs" tone="accent" />
             <KPI icon={<TrendingUp className="h-4 w-4" />} label="Profit" value={fmtTZS(view.local.profitTzs)} sub="Revenue − expenses" tone={view.local.profitTzs >= 0 ? "success" : "destructive"} />
             <KPI icon={<Users className="h-4 w-4" />} label="Salary" value={fmtTZS(view.local.salary)} sub="Local drivers" tone="accent" />
             <KPI icon={<Wrench className="h-4 w-4" />} label="Maintenance" value={fmtTZS(view.local.maintenance)} sub="Local maintenance" tone="accent" />
-            <KPI icon={<TrendingUp className="h-4 w-4" />} label="Net Profit" value={fmtTZS(view.local.netProfit)} sub="After salary & maintenance" tone={view.local.netProfit >= 0 ? "success" : "destructive"} />
+            <KPI icon={<TrendingUp className="h-4 w-4" />} label="Net Profit" value={fmtTZS(view.local.netProfit)} sub="After all costs" tone={view.local.netProfit >= 0 ? "success" : "destructive"} />
             <KPI icon={<Wallet className="h-4 w-4" />} label="Outstanding Adv." value={fmtTZS(view.local.outstandingAdv)} sub="Advance − spent" tone="warning" />
           </div>
         </div>
 
-        {/* Shared KPIs – now with Total Net Profit instead of Total Maintenance */}
-        <div className="grid gap-3 sm:grid-cols-3 mb-8">
+        {/* Shared KPIs */}
+        <div className="grid gap-3 sm:grid-cols-4 mb-8">
           <KPI icon={<Users className="h-4 w-4" />} label="Total Salary" value={fmtTZS(data.totalSalary)} sub="All drivers" tone="accent" />
-          <KPI icon={<FileText className="h-4 w-4" />} label="Active Contracts" value={String(data.activeContracts)} sub="Signed & running" tone="primary" />
+          <KPI icon={<Wrench className="h-4 w-4" />} label="Total Maintenance" value={fmtTZS(data.totalMaintenance)} sub="All completed jobs" tone="accent" />
+          <KPI icon={<Receipt className="h-4 w-4" />} label="Total Operational Expenses" value={fmtTZS(data.totalOperationalExpenses)} sub="Rent, loans, stationery, etc." tone="accent" />
           <KPI icon={<TrendingUp className="h-4 w-4" />} label="Total Net Profit" value={fmtTZS(data.totalNetProfit)} sub="Border + Local" tone="success" />
         </div>
 
