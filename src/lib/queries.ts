@@ -216,6 +216,18 @@ export type VehicleMaintenance = {
   technician?: { id: string; name: string; phone: string | null } | null;
 };
 
+// ===== NEW TYPE: OPERATIONAL EXPENSES =====
+export type OperationalExpense = {
+  id: string;
+  description: string;
+  category: string;
+  amount_tzs: number;
+  expense_date: string;
+  expense_type: 'border' | 'local' | 'both';
+  receipt_url: string | null;
+  created_at: string;
+};
+
 // ========== QUERIES ==========
 
 export const vehiclesQuery = queryOptions({
@@ -509,6 +521,19 @@ export const technicianDetailQuery = (technicianId: string) =>
     },
   });
 
+// ===== OPERATIONAL EXPENSES QUERY =====
+export const operationalExpensesQuery = queryOptions({
+  queryKey: ["operational_expenses"],
+  queryFn: async (): Promise<OperationalExpense[]> => {
+    const { data, error } = await supabase
+      .from("operational_expenses")
+      .select("*")
+      .order("expense_date", { ascending: false });
+    if (error) throw error;
+    return data as OperationalExpense[];
+  },
+});
+
 export const customerDetailQuery = (customerId: string) =>
   queryOptions({
     queryKey: ["customer", customerId],
@@ -590,7 +615,7 @@ export const invoiceDetailQuery = (invoiceId: string) =>
     },
   });
 
-// ===== FINANCE OVERVIEW =====
+// ===== UPDATED FINANCE OVERVIEW =====
 export const financeOverviewQuery = queryOptions({
   queryKey: ["finance", "overview"],
   queryFn: async () => {
@@ -602,6 +627,7 @@ export const financeOverviewQuery = queryOptions({
       { data: drivers },
       { data: contracts },
       { data: maintenance },
+      { data: opExps },
     ] = await Promise.all([
       supabase.from("trips").select("*"),
       supabase.from("trip_financials").select("*"),
@@ -610,6 +636,7 @@ export const financeOverviewQuery = queryOptions({
       supabase.from("drivers").select("*"),
       supabase.from("contracts").select("*"),
       supabase.from("vehicle_maintenance").select("*"),
+      supabase.from("operational_expenses").select("*"),
     ]);
 
     // Separate border/local trips
@@ -661,9 +688,18 @@ export const financeOverviewQuery = queryOptions({
       .filter((m) => m.status === "Completed" && (m.trip_type === "local" || m.trip_type === "both"))
       .reduce((s, m) => s + Number(m.cost_tzs), 0);
 
+    // Operational expenses split
+    const opExpsArray = opExps ?? [];
+    const borderOpExp = opExpsArray
+      .filter(e => e.expense_type === 'border' || e.expense_type === 'both')
+      .reduce((s, e) => s + Number(e.amount_tzs), 0);
+    const localOpExp = opExpsArray
+      .filter(e => e.expense_type === 'local' || e.expense_type === 'both')
+      .reduce((s, e) => s + Number(e.amount_tzs), 0);
+
     // Net profits
-    const borderNetProfit = borderProfitTzs - borderSalary - borderMaintenance;
-    const localNetProfit = localProfitTzs - localSalary - localMaintenance;
+    const borderNetProfit = borderProfitTzs - borderSalary - borderMaintenance - borderOpExp;
+    const localNetProfit = localProfitTzs - localSalary - localMaintenance - localOpExp;
 
     const activeContracts = (contracts ?? []).filter((c) => c.status === "Active").length;
 
@@ -679,6 +715,7 @@ export const financeOverviewQuery = queryOptions({
         outstandingAdv: borderOutstandingAdv,
         salary: borderSalary,
         maintenance: borderMaintenance,
+        operationalExpenses: borderOpExp,
         netProfit: borderNetProfit,
       },
       local: {
@@ -691,6 +728,7 @@ export const financeOverviewQuery = queryOptions({
         outstandingAdv: localOutstandingAdv,
         salary: localSalary,
         maintenance: localMaintenance,
+        operationalExpenses: localOpExp,
         netProfit: localNetProfit,
       },
       activeContracts,
