@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { ArrowLeft, Phone, IdCard, MapPin, Wallet, Banknote, Briefcase, TrendingUp } from "lucide-react";
+import { ArrowLeft, Phone, IdCard, MapPin, Wallet, Banknote, Briefcase, TrendingUp, Trash2, Pencil } from "lucide-react";
+import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { StatusBadge } from "@/components/fleet/StatusBadge";
 import { NewDriverPaymentDialog } from "@/components/fleet/NewDriverPaymentDialog";
@@ -9,6 +11,7 @@ import { driverDetailQuery } from "@/lib/queries";
 import { fmtNum, fmtTZS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/drivers/$driverId")({
   component: DriverDetailPage,
@@ -23,7 +26,27 @@ export const Route = createFileRoute("/drivers/$driverId")({
 function DriverDetailPage() {
   const { driverId } = Route.useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data, isLoading } = useQuery(driverDetailQuery(driverId));
+
+  // Delete payment mutation
+  const deletePayment = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const { error } = await supabase
+        .from("driver_payments")
+        .delete()
+        .eq("id", paymentId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["driver", driverId] });
+      qc.invalidateQueries({ queryKey: ["drivers"] });
+      qc.invalidateQueries({ queryKey: ["drivers", "overview"] });
+      qc.invalidateQueries({ queryKey: ["finance", "overview"] });
+      toast.success("Payment deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const totals = useMemo(() => {
     if (!data) return { tripAdvance: 0, salary: 0, extraAdvance: 0, active: 0 };
@@ -56,7 +79,7 @@ function DriverDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Page header – no AppHeader */}
+      {/* Page header */}
       <div className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-xl px-4 py-3 md:px-6 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <Button
@@ -130,7 +153,7 @@ function DriverDetailPage() {
             </div>
           </section>
 
-          {/* Payments ledger */}
+          {/* Payments ledger with edit & delete */}
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-tight">Payment ledger</h2>
@@ -143,11 +166,12 @@ function DriverDetailPage() {
                     <th className="px-4 py-3 font-medium">Date</th>
                     <th className="px-4 py-3 font-medium">Type</th>
                     <th className="px-4 py-3 font-medium text-right">Amount</th>
+                    <th className="px-4 py-3 font-medium text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.length === 0 && (
-                    <tr><td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">No payments recorded.</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">No payments recorded.</td></tr>
                   )}
                   {payments.map((p) => (
                     <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
@@ -163,6 +187,24 @@ function DriverDetailPage() {
                         {p.notes && <div className="mt-0.5 text-[11px] text-muted-foreground">{p.notes}</div>}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular">{fmtTZS(p.amount_tzs)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <NewDriverPaymentDialog
+                            driverId={driver.id}
+                            initialData={p}
+                            trigger={<Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => deletePayment.mutate(p.id)}
+                            disabled={deletePayment.isPending}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -175,7 +217,19 @@ function DriverDetailPage() {
   );
 }
 
-function StatCard({ icon, label, primary, sub, tone }: { icon: React.ReactNode; label: string; primary: string; sub: string; tone: "primary" | "success" | "warning" | "accent"; }) {
+function StatCard({
+  icon,
+  label,
+  primary,
+  sub,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  primary: string;
+  sub: string;
+  tone: "primary" | "success" | "warning" | "accent";
+}) {
   const toneMap = {
     primary: "border-primary/30 bg-primary/8",
     success: "border-success/40 bg-success/10",
